@@ -47,7 +47,7 @@ export default function QuickAddDrawer({ open, onClose }: Props) {
 
   // ── 進階選項 ──────────────────────────────────────────────────────
   const [showAdvanced, setShowAdvanced]       = useState(false);
-  const [activePanel, setActivePanel]         = useState<"date"|"wallet"|"merchant"|"recurring"|null>(null);
+  const [activePanel, setActivePanel]         = useState<"date"|"wallet"|"merchant"|"recurring"|"note"|null>(null);
   const [selectedDate, setSelectedDate]       = useState(() => new Date().toISOString().split("T")[0]);
   const [selectedWalletId, setSelectedWalletId] = useState<string | null>(null);
   const [merchantInput, setMerchantInput]     = useState("");
