@@ -166,3 +166,50 @@ export type Invitation = typeof invitations.$inferSelect;
 export type Category = typeof categories.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;
 export type Authenticator = typeof authenticators.$inferSelect;
+
+import { relations } from "drizzle-orm";
+
+export const usersRelations = relations(users, ({ many }) => ({
+  familyMembers: many(familyMembers),
+  transactions: many(transactions),
+}));
+
+export const familiesRelations = relations(families, ({ many }) => ({
+  members: many(familyMembers),
+  categories: many(categories),
+  transactions: many(transactions),
+}));
+
+export const familyMembersRelations = relations(familyMembers, ({ one }) => ({
+  family: one(families, {
+    fields: [familyMembers.familyId],
+    references: [families.id],
+  }),
+  user: one(users, {
+    fields: [familyMembers.userId],
+    references: [users.id],
+  }),
+}));
+
+export const categoriesRelations = relations(categories, ({ one, many }) => ({
+  family: one(families, {
+    fields: [categories.familyId],
+    references: [families.id],
+  }),
+  transactions: many(transactions),
+}));
+
+export const transactionsRelations = relations(transactions, ({ one }) => ({
+  family: one(families, {
+    fields: [transactions.familyId],
+    references: [families.id],
+  }),
+  user: one(users, {
+    fields: [transactions.userId],
+    references: [users.id],
+  }),
+  category: one(categories, {
+    fields: [transactions.categoryId],
+    references: [categories.id],
+  }),
+}));

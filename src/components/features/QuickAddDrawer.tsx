@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useCallback } from "react";
 import { X, Calendar, FileText, Camera, Check } from "lucide-react";
+import { addTransaction } from "@/app/actions/transaction";
 
 // ── 預設分類資料 ────────────────────────────────────
 const EXPENSE_CATEGORIES = [
@@ -81,9 +82,26 @@ export default function QuickAddDrawer({ open, onClose }: QuickAddDrawerProps) {
   const handleSubmit = async () => {
     if (!canSubmit) return;
     setSubmitted(true);
-    // TODO: 呼叫 API，此處為示意
-    await new Promise(r => setTimeout(r, 800));
-    handleClose();
+    
+    const cat = categories.find(c => c.id === selectedCat);
+    if (!cat) return;
+
+    try {
+      await addTransaction({
+        amount: parseFloat(amount),
+        type,
+        categoryName: cat.label,
+        categoryIcon: cat.icon,
+        note: note,
+      });
+      // 給予一點成功動畫的時間
+      await new Promise(r => setTimeout(r, 600));
+      handleClose();
+    } catch (error) {
+      console.error("Failed to add transaction:", error);
+      setSubmitted(false);
+      alert("儲存失敗，請重試");
+    }
   };
 
   const isExpense = type === "EXPENSE";
