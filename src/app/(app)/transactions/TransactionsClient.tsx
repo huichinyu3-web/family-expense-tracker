@@ -14,6 +14,16 @@ type TransactionItem = {
   avatar: string;
   date: string;
   type: string;
+  walletName: string | null;
+  walletType: string | null;
+  merchantName: string | null;
+  note: string | null;
+  recurringType: string | null;
+  installments: number | null;
+};
+
+const WALLET_ICONS: Record<string, string> = {
+  CASH: "💵", BANK: "🏦", CREDIT_CARD: "💳", E_WALLET: "📱", OTHER: "💰"
 };
 
 const MEMBERS  = ["全部", "小明", "小花"];
@@ -21,8 +31,8 @@ const TYPES    = ["全部", "支出", "收入"];
 
 function Avatar({ initial }: { initial: string }) {
   return (
-    <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0"
-      style={{ background: initial === "M" ? "#6366f1" : "#ec4899" }}>
+    <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
+      style={{ background: "var(--gradient-primary)" }}>
       {initial}
     </div>
   );
@@ -55,7 +65,8 @@ export default function TransactionsClient({ initialData }: { initialData: Trans
   const [showFilter, setShowFilter] = useState(false);
 
   const filtered = initialData.filter(tx => {
-    const matchSearch = tx.name.includes(search) || tx.category.includes(search);
+    const searchTarget = `${tx.name} ${tx.category} ${tx.merchantName || ""} ${tx.note || ""}`;
+    const matchSearch = searchTarget.includes(search);
     const matchMember = member === "全部" || tx.member === member;
     const matchType   = typeFilter === "全部"
       || (typeFilter === "支出" && tx.type === "EXPENSE")
@@ -92,7 +103,7 @@ export default function TransactionsClient({ initialData }: { initialData: Trans
           style={{ color: "var(--text-muted)" }} />
         <input
           type="text"
-          placeholder="搜尋項目或分類..."
+          placeholder="搜尋商家、分類或備註..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none"
@@ -172,17 +183,17 @@ export default function TransactionsClient({ initialData }: { initialData: Trans
         </div>
       ) : (
         Object.entries(grouped).map(([date, txs]) => (
-          <div key={date} className="mb-4">
+          <div key={date} className="mb-5">
             {/* 日期標頭 */}
             <div className="flex items-center gap-2 mb-2 px-1">
               <span className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>
                 {formatDate(date)}
               </span>
               <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
-              <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+              <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
                 {txs.filter(t => t.type === "EXPENSE")
                   .reduce((s, t) => s + Math.abs(t.amount), 0) > 0 &&
-                  `-NT$${txs.filter(t => t.type === "EXPENSE").reduce((s, t) => s + Math.abs(t.amount), 0).toLocaleString()}`
+                  `支出 NT$${txs.filter(t => t.type === "EXPENSE").reduce((s, t) => s + Math.abs(t.amount), 0).toLocaleString()}`
                 }
               </span>
             </div>
@@ -194,41 +205,67 @@ export default function TransactionsClient({ initialData }: { initialData: Trans
                   key={tx.id}
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.04 }}
-                  className="glass-card px-4 py-3 flex items-center gap-3"
+                  transition={{ delay: i * 0.03 }}
+                  className="glass-card px-3.5 py-3 flex items-start gap-3"
                 >
                   {/* Icon + 成員頭貼 */}
-                  <div className="relative flex-shrink-0">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
-                      style={{ background: "var(--bg-card)" }}>
+                  <div className="relative flex-shrink-0 mt-0.5">
+                    <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl"
+                      style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
                       {tx.icon}
                     </div>
-                    <div className="absolute -bottom-1 -right-1 ring-2 ring-[#0a0a0f] rounded-full">
+                    <div className="absolute -bottom-1 -right-1 ring-2 ring-[var(--bg-surface)] rounded-full">
                       <Avatar initial={tx.avatar} />
                     </div>
                   </div>
 
-                  {/* 描述 */}
+                  {/* 描述區 */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>
-                      {tx.name}
-                    </p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-md"
-                        style={{ background: "var(--bg-card)", color: "var(--text-muted)" }}>
-                        {tx.category}
-                      </span>
-                      <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
-                        {tx.member}
+                    <div className="flex justify-between items-start mb-1">
+                      <p className="text-sm font-semibold truncate flex items-center gap-1.5" style={{ color: "var(--text-primary)" }}>
+                        {tx.merchantName || tx.category}
+                      </p>
+                      {/* 金額 */}
+                      <span className="font-bold text-[15px] tabular-nums flex-shrink-0 ml-2"
+                        style={{ color: tx.type === "INCOME" ? "#10b981" : "var(--text-primary)" }}>
+                        {tx.type === "INCOME" ? "+" : ""}NT${Math.abs(tx.amount).toLocaleString()}
                       </span>
                     </div>
+                    
+                    {/* Tag 標籤區 */}
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-md"
+                        style={{ background: "var(--bg-card)", color: "var(--text-muted)", border: "1px solid var(--border)" }}>
+                        {tx.category}
+                      </span>
+                      {tx.walletName && (
+                        <span className="text-[10px] flex items-center gap-1 px-1.5 py-0.5 rounded-md"
+                          style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}>
+                          <span>{WALLET_ICONS[tx.walletType || "OTHER"] || "💳"}</span>
+                          {tx.walletName}
+                        </span>
+                      )}
+                      {tx.recurringType === "INSTALLMENT" && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-md"
+                          style={{ background: "rgba(245,158,11,0.1)", color: "#f59e0b" }}>
+                          分期 ({tx.installments}期)
+                        </span>
+                      )}
+                      {tx.recurringType && tx.recurringType !== "INSTALLMENT" && tx.recurringType !== "NONE" && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-md"
+                          style={{ background: "rgba(16,185,129,0.1)", color: "#10b981" }}>
+                          自動週期
+                        </span>
+                      )}
+                    </div>
+                    
+                    {/* 備註區 */}
+                    {tx.note && (
+                      <p className="text-xs truncate mt-2 px-2 border-l-2" style={{ color: "var(--text-secondary)", borderColor: "rgba(99,102,241,0.3)" }}>
+                        {tx.note}
+                      </p>
+                    )}
                   </div>
-
-                  {/* 金額 */}
-                  <span className="font-semibold text-sm tabular-nums"
-                    style={{ color: tx.type === "INCOME" ? "#10b981" : "#f87171" }}>
-                    {tx.type === "INCOME" ? "+" : ""}NT${Math.abs(tx.amount).toLocaleString()}
-                  </span>
                 </motion.div>
               ))}
             </div>

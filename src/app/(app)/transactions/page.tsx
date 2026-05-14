@@ -22,6 +22,12 @@ export default async function TransactionsPage() {
       avatar: (tx.user?.name || "U")[0].toUpperCase(),
       date: dateStr,
       type: tx.type,
+      walletName: tx.wallet?.name || null,
+      walletType: tx.wallet?.type || null,
+      merchantName: tx.merchant?.name || null,
+      note: tx.note || null,
+      recurringType: tx.recurringType,
+      installments: tx.installments,
     };
   });
 
