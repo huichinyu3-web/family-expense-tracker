@@ -253,7 +253,7 @@ export default function QuickAddDrawer({ open, onClose }: Props) {
               <div className="h-px mx-4 mb-3" style={{ background:"var(--border)" }} />
 
               {/* ── 快速選項列 ── */}
-              <div className="flex gap-2 px-4 mb-2 overflow-x-auto" style={{ scrollbarWidth:"none" }}>
+              <div className="flex flex-wrap gap-2 px-4 mb-2">
                 {[
                   { key:"date",     icon:<Calendar size={12}/>,    label: selectedDate === new Date().toISOString().split("T")[0] ? "今天" : selectedDate.slice(5).replace("-","/") },
                   { key:"wallet",   icon:<Wallet size={12}/>,      label: wallets.find(w=>w.id===selectedWalletId)?.name ?? "帳戶" },
@@ -306,10 +306,10 @@ export default function QuickAddDrawer({ open, onClose }: Props) {
                           <p className="text-xs font-medium mb-2" style={{ color:"var(--text-muted)" }}>選擇帳戶</p>
                           {wallets.length === 0
                             ? <p className="text-xs" style={{ color:"var(--text-muted)" }}>尚無帳戶，請至設定中新增</p>
-                            : <div className="flex flex-col gap-1.5">
+                            : <div className="flex flex-col gap-1.5 max-h-[160px] overflow-y-auto pr-1" style={{ scrollbarWidth: "thin" }}>
                                 {wallets.map(w => (
                                   <button key={w.id} onClick={() => setSelectedWalletId(w.id===selectedWalletId ? null : w.id)}
-                                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm"
+                                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm flex-shrink-0"
                                     style={{
                                       background: selectedWalletId===w.id ? "rgba(99,102,241,0.15)" : "var(--bg-surface)",
                                       border: selectedWalletId===w.id ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
