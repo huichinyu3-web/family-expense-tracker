@@ -131,13 +131,24 @@ export default function JoinClient() {
           <p className="text-xs text-red-400 text-center mb-3">{errorMsg}</p>
         )}
 
-        <motion.button
-          whileTap={{ scale: 0.97 }} onClick={handleAccept} disabled={pending}
-          className="w-full h-12 rounded-2xl font-semibold text-sm text-white flex items-center justify-center gap-2"
-          style={{ background: "var(--gradient-primary)" }}>
-          <LogIn size={16} />
-          {pending ? "加入中..." : "接受邀請並加入家庭"}
-        </motion.button>
+        {errorMsg === "請先登入再接受邀請" ? (
+          <motion.button
+            whileTap={{ scale: 0.97 }} onClick={() => router.push(`/login?callbackUrl=/join?token=${token}`)}
+            className="w-full h-12 rounded-2xl font-semibold text-sm text-white flex items-center justify-center gap-2"
+            style={{ background: "var(--gradient-primary)" }}>
+            <LogIn size={16} />
+            前往登入
+          </motion.button>
+        ) : (
+          <motion.button
+            whileTap={{ scale: 0.97 }} onClick={handleAccept} disabled={pending}
+            className="w-full h-12 rounded-2xl font-semibold text-sm text-white flex items-center justify-center gap-2"
+            style={{ background: "var(--gradient-primary)" }}>
+            <LogIn size={16} />
+            {pending ? "加入中..." : "接受邀請並加入家庭"}
+          </motion.button>
+        )}
+        
         <button onClick={() => router.push("/")} className="w-full mt-3 text-xs text-center py-2" style={{ color: "var(--text-muted)" }}>
           不了，謝謝
         </button>
