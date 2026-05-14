@@ -113,13 +113,16 @@ export default function QuickAddDrawer({ open, onClose }: QuickAddDrawerProps) {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 28, stiffness: 280 }}
-            className="fixed bottom-0 left-0 right-0 z-50 max-w-lg mx-auto rounded-t-3xl overflow-hidden"
+            className="fixed bottom-0 left-0 right-0 z-50 max-w-lg mx-auto rounded-t-3xl flex flex-col"
             style={{
               background: "var(--bg-surface)",
               border: "1px solid var(--border)",
               borderBottom: "none",
+              maxHeight: "92dvh", // 限制最高高度，確保不超出螢幕
             }}
           >
+            {/* 允許內部滾動區塊 */}
+            <div className="overflow-y-auto flex-1 flex flex-col" style={{ scrollbarWidth: "none" }}>
             {/* 拖曳把手 */}
             <div className="flex justify-center pt-3 pb-1">
               <div className="w-10 h-1 rounded-full" style={{ background: "var(--border-hover)" }} />
@@ -299,6 +302,7 @@ export default function QuickAddDrawer({ open, onClose }: QuickAddDrawerProps) {
                   </>
                 )}
               </motion.button>
+            </div>
             </div>
           </motion.div>
         </>
