@@ -94,7 +94,11 @@ export async function acceptInvitation(token: string) {
 
   if (existing) return { error: "您已經是此家庭的成員了，請勿重複加入！" };
 
-  // 加入家庭
+  // 刪除該使用者所有的舊家庭成員紀錄（包含系統預設建立的單人家庭）
+  // 這樣一來，使用者就會正式「切換」到這個受邀的新家庭中
+  await db.delete(familyMembers).where(eq(familyMembers.userId, userId));
+
+  // 加入新家庭
   await db.insert(familyMembers).values({
     id: crypto.randomUUID(),
     familyId: inv.familyId,
