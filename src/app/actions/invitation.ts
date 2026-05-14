@@ -72,7 +72,7 @@ export async function getInvitationByToken(token: string) {
 // ── 接受邀請 ─────────────────────────────────────────────────────────
 export async function acceptInvitation(token: string) {
   const session = await auth();
-  if (!session?.user?.id) throw new Error("請先登入再接受邀請");
+  if (!session?.user?.id) return { error: "請先登入再接受邀請" };
 
   const userId = session.user.id;
 
@@ -80,9 +80,9 @@ export async function acceptInvitation(token: string) {
     where: eq(invitations.token, token),
   });
 
-  if (!inv) throw new Error("邀請連結無效");
-  if (inv.expiresAt < Date.now()) throw new Error("邀請連結已過期");
-  if (inv.usedAt !== null) throw new Error("此邀請連結已被使用過");
+  if (!inv) return { error: "邀請連結無效" };
+  if (inv.expiresAt < Date.now()) return { error: "邀請連結已過期" };
+  if (inv.usedAt !== null) return { error: "此邀請連結已被使用過" };
 
   // 確認還不是這個家庭的成員
   const existing = await db.query.familyMembers.findFirst({
@@ -92,7 +92,7 @@ export async function acceptInvitation(token: string) {
     ),
   });
 
-  if (existing) throw new Error("您已經是此家庭的成員了");
+  if (existing) return { error: "您已經是此家庭的成員了，請勿重複加入！" };
 
   // 加入家庭
   await db.insert(familyMembers).values({

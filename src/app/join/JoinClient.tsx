@@ -28,7 +28,12 @@ export default function JoinClient() {
   const handleAccept = () => {
     startTransition(async () => {
       try {
-        await acceptInvitation(token);
+        const res = await acceptInvitation(token);
+        if (res?.error) {
+          setErrorMsg(res.error);
+          setResult("error");
+          return;
+        }
         setResult("success");
         setTimeout(() => router.push("/"), 2000);
       } catch (e: any) {
