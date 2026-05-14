@@ -29,7 +29,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* 底部導覽列 */}
       <nav
-        className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around px-4 pt-3 pb-6"
+        className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around px-4 pt-3 pb-6"
         style={{
           background: "rgba(19,19,26,0.85)",
           backdropFilter: "blur(20px)",

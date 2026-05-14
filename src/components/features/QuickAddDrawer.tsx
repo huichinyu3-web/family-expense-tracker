@@ -102,7 +102,7 @@ export default function QuickAddDrawer({ open, onClose }: QuickAddDrawerProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={handleClose}
-            className="fixed inset-0 z-40"
+            className="fixed inset-0 z-[60]"
             style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
           />
 
@@ -113,7 +113,7 @@ export default function QuickAddDrawer({ open, onClose }: QuickAddDrawerProps) {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 28, stiffness: 280 }}
-            className="fixed bottom-0 left-0 right-0 z-50 max-w-lg mx-auto rounded-t-3xl flex flex-col"
+            className="fixed bottom-0 left-0 right-0 z-[70] max-w-lg mx-auto rounded-t-3xl flex flex-col"
             style={{
               background: "var(--bg-surface)",
               border: "1px solid var(--border)",
