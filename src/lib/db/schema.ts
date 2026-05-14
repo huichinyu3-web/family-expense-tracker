@@ -120,7 +120,7 @@ export const invitations = sqliteTable(
   })
 );
 
-// ─── 9. Categories (記帳分類，支援家庭自訂) ──────────────────────────────────
+// ─── 9. Categories (記帳分類，支援兩層結構與家庭自訂) ────────────────────────
 export const categories = sqliteTable(
   "categories",
   {
@@ -128,11 +128,18 @@ export const categories = sqliteTable(
     familyId: text("family_id").notNull().references(() => families.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     type: text("type", { enum: ["INCOME", "EXPENSE"] }).notNull(),
-    icon: text("icon"),   // Emoji 或 icon 名稱
-    color: text("color"), // Hex 色碼
+    icon: text("icon"),          // Emoji 圖示
+    color: text("color"),        // Hex 色碼
+    // ── 兩層分類 ──
+    parentId: text("parent_id"), // null = 大項；有值 = 細項（指向大項 id）
+    // ── 管理欄位 ──
+    isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false), // 系統預設不可刪除
+    isHidden: integer("is_hidden", { mode: "boolean" }).notNull().default(false),   // 使用者可隱藏
+    sortOrder: integer("sort_order").notNull().default(0),                           // 排列順序
   },
   (table) => ({
     familyIdx: index("idx_categories_family_id").on(table.familyId),
+    parentIdx: index("idx_categories_parent_id").on(table.parentId),
   })
 );
 
@@ -149,14 +156,52 @@ export const transactions = sqliteTable(
     date: integer("date").notNull(), // 消費日期 Unix Timestamp
     note: text("note"),
     imageUrl: text("image_url"),
+    // -- 新增進階欄位 --
+    walletId: text("wallet_id"), // 不加 foreign key constraint 避免 SQLite alter table 報錯
+    merchantId: text("merchant_id"),
+    recurringType: text("recurring_type", { 
+      enum: ["NONE", "DAILY", "WORKDAY", "WEEKLY", "BIWEEKLY", "MONTHLY", "BIMONTHLY", "QUARTERLY", "SEMIANNUALLY", "ANNUALLY", "INSTALLMENT"] 
+    }).default("NONE"),
+    installments: integer("installments"), // 總期數
+    installmentIndex: integer("installment_index"), // 當前第幾期
+    parentId: text("parent_id"), // 指向原始的交易（用來追蹤分期或週期）
+    // ----------------
     createdAt: integer("created_at").default(sql`(cast(strftime('%s', 'now') as integer))`),
   },
   (table) => ({
     familyIdx: index("idx_tx_family_id").on(table.familyId),
     dateIdx: index("idx_tx_date").on(table.date),
     userIdx: index("idx_tx_user_id").on(table.userId),
+    walletIdx: index("idx_tx_wallet_id").on(table.walletId),
   })
 );
+
+// ─── 11. Wallets (帳戶來源) ──────────────────────────────────────────────────
+export const wallets = sqliteTable("wallets", {
+  id: text("id").primaryKey(),
+  familyId: text("family_id").notNull().references(() => families.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  type: text("type", { enum: ["CASH", "BANK", "CREDIT_CARD", "E_WALLET", "OTHER"] }).notNull().default("CASH"),
+  visibility: text("visibility", { enum: ["PERSONAL", "FAMILY", "CUSTOM"] }).notNull().default("FAMILY"),
+  ownerId: text("owner_id").references(() => users.id), // 若為 PERSONAL，記錄誰是擁有者
+  createdAt: integer("created_at").default(sql`(cast(strftime('%s', 'now') as integer))`),
+});
+
+// ─── 12. Wallet Members (帳戶存取權限，CUSTOM 模式專用) ──────────────────────
+export const walletMembers = sqliteTable("wallet_members", {
+  walletId: text("wallet_id").notNull().references(() => wallets.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.walletId, table.userId] }),
+}));
+
+// ─── 13. Merchants (商家) ───────────────────────────────────────────────────
+export const merchants = sqliteTable("merchants", {
+  id: text("id").primaryKey(),
+  familyId: text("family_id").notNull().references(() => families.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  createdAt: integer("created_at").default(sql`(cast(strftime('%s', 'now') as integer))`),
+});
 
 // ─── 型別匯出 (給 TypeScript 推導用) ─────────────────────────────────────────
 export type User = typeof users.$inferSelect;
@@ -166,18 +211,24 @@ export type Invitation = typeof invitations.$inferSelect;
 export type Category = typeof categories.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;
 export type Authenticator = typeof authenticators.$inferSelect;
+export type Wallet = typeof wallets.$inferSelect;
+export type WalletMember = typeof walletMembers.$inferSelect;
+export type Merchant = typeof merchants.$inferSelect;
 
 import { relations } from "drizzle-orm";
 
 export const usersRelations = relations(users, ({ many }) => ({
   familyMembers: many(familyMembers),
   transactions: many(transactions),
+  ownedWallets: many(wallets),
 }));
 
 export const familiesRelations = relations(families, ({ many }) => ({
   members: many(familyMembers),
   categories: many(categories),
   transactions: many(transactions),
+  wallets: many(wallets),
+  merchants: many(merchants),
 }));
 
 export const familyMembersRelations = relations(familyMembers, ({ one }) => ({
@@ -199,6 +250,38 @@ export const categoriesRelations = relations(categories, ({ one, many }) => ({
   transactions: many(transactions),
 }));
 
+export const walletsRelations = relations(wallets, ({ one, many }) => ({
+  family: one(families, {
+    fields: [wallets.familyId],
+    references: [families.id],
+  }),
+  owner: one(users, {
+    fields: [wallets.ownerId],
+    references: [users.id],
+  }),
+  transactions: many(transactions),
+  walletMembers: many(walletMembers),
+}));
+
+export const walletMembersRelations = relations(walletMembers, ({ one }) => ({
+  wallet: one(wallets, {
+    fields: [walletMembers.walletId],
+    references: [wallets.id],
+  }),
+  user: one(users, {
+    fields: [walletMembers.userId],
+    references: [users.id],
+  }),
+}));
+
+export const merchantsRelations = relations(merchants, ({ one, many }) => ({
+  family: one(families, {
+    fields: [merchants.familyId],
+    references: [families.id],
+  }),
+  transactions: many(transactions),
+}));
+
 export const transactionsRelations = relations(transactions, ({ one }) => ({
   family: one(families, {
     fields: [transactions.familyId],
@@ -211,5 +294,13 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
   category: one(categories, {
     fields: [transactions.categoryId],
     references: [categories.id],
+  }),
+  wallet: one(wallets, {
+    fields: [transactions.walletId],
+    references: [wallets.id],
+  }),
+  merchant: one(merchants, {
+    fields: [transactions.merchantId],
+    references: [merchants.id],
   }),
 }));

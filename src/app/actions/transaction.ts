@@ -3,6 +3,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { transactions, families, familyMembers, categories } from "@/lib/db/schema";
+import { seedCategories } from "@/lib/db/seed-categories";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import crypto from "crypto";
@@ -42,6 +43,8 @@ export async function addTransaction(data: {
       userId,
       role: "OWNER",
     });
+    // 自動初始化完整的預設分類（收入/支出兩層結構）
+    await seedCategories(familyId);
   }
 
   // 2. 尋找或建立該分類
