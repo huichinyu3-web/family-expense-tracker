@@ -27,7 +27,7 @@ export default async function DashboardPage() {
     <DashboardClient 
       transactions={transactions} 
       currentUserId={userId}
-      userName={session.user.name || "使用者"}
+      userName={session?.user?.name || "使用者"}
       familyName={membership?.family?.name || "我的家庭"}
     />
   );
