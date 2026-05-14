@@ -130,7 +130,7 @@ export default function QuickAddDrawer({ open, onClose }: { open: boolean; onClo
       await addTransaction({
         type, amount: parseFloat(amount),
         categoryId: selectedChild,
-        date: ts, note, walletId: selectedWalletId, merchantName: merchantInput,
+        date: ts, note, walletId: selectedWalletId || undefined, merchantName: merchantInput,
         recurringType: recurringType as any, installments,
       });
       router.refresh();
