@@ -2,7 +2,7 @@
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { wallets, walletMembers, familyMembers } from "@/lib/db/schema";
+import { wallets, walletMembers, familyMembers, transactions, categories } from "@/lib/db/schema";
 import { eq, and, or, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import crypto from "crypto";
@@ -22,10 +22,28 @@ export async function getAccessibleWallets() {
 
   const familyId = membership.familyId;
 
-  // 取得這個家庭所有帳戶
+  // 取得這個家庭所有帳戶，並帶入關聯的明細以計算餘額
   const allWallets = await db.query.wallets.findMany({
     where: eq(wallets.familyId, familyId),
-    with: { walletMembers: true },
+    with: { 
+      walletMembers: true,
+      // 之後在前端或這裡算餘額，但 findMany 不支援直接 sum，所以我們可以在這裡撈全部交易，或者先回傳。
+      // 這裡先不動，稍後前端或這裡可以優化。
+    },
+  });
+
+  // 為了計算即時餘額，我們去撈這個家庭的所有交易
+  const allTxs = await db.query.transactions.findMany({
+    where: eq(transactions.familyId, familyId),
+    columns: { walletId: true, amount: true, type: true }
+  });
+
+  // 計算每個錢包的餘額
+  const balances: Record<string, number> = {};
+  allTxs.forEach(tx => {
+    if (!tx.walletId) return;
+    if (!balances[tx.walletId]) balances[tx.walletId] = 0;
+    balances[tx.walletId] += tx.type === "INCOME" ? Math.abs(tx.amount) : -Math.abs(tx.amount);
   });
 
   // 過濾出該使用者有權限的帳戶
@@ -36,7 +54,10 @@ export async function getAccessibleWallets() {
       return w.walletMembers.some((wm) => wm.userId === userId);
     }
     return false;
-  });
+  }).map(w => ({
+    ...w,
+    balance: balances[w.id] || 0
+  }));
 
   return accessible;
 }
@@ -49,6 +70,7 @@ export async function createWallet(data: {
   type: "CASH" | "BANK" | "CREDIT_CARD" | "E_WALLET" | "OTHER";
   visibility: "PERSONAL" | "FAMILY" | "CUSTOM";
   memberIds?: string[]; // CUSTOM 模式指定的成員
+  initialBalance?: number;
 }) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Unauthorized");
@@ -72,6 +94,43 @@ export async function createWallet(data: {
     await db.insert(walletMembers).values(
       data.memberIds.map((uid) => ({ walletId, userId: uid }))
     );
+  }
+
+  // 若有初始金額，建立一筆系統初始明細
+  if (data.initialBalance && data.initialBalance !== 0) {
+    const txType = data.initialBalance > 0 ? "INCOME" : "EXPENSE";
+    const amount = Math.abs(data.initialBalance);
+    
+    // 找尋或建立隱藏的系統分類
+    let cat = await db.query.categories.findFirst({
+      where: and(eq(categories.familyId, familyId), eq(categories.name, "系統初始調整"), eq(categories.type, txType))
+    });
+
+    if (!cat) {
+      const newCatId = crypto.randomUUID();
+      await db.insert(categories).values({
+        id: newCatId,
+        familyId,
+        name: "系統初始調整",
+        type: txType,
+        icon: "⚙️",
+        isDefault: true,
+        isHidden: true,
+      });
+      cat = { id: newCatId } as any;
+    }
+
+    await db.insert(transactions).values({
+      id: crypto.randomUUID(),
+      familyId,
+      userId,
+      walletId,
+      categoryId: cat!.id,
+      amount,
+      type: txType,
+      date: Date.now(),
+      note: "帳戶初始金額設定",
+    });
   }
 
   revalidatePath("/settings");

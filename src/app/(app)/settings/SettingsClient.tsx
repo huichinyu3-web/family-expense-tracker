@@ -14,7 +14,7 @@ import { useRouter } from "next/navigation";
 
 // ── 型別 ──────────────────────────────────────────────────────────────
 type Wallet = {
-  id: string; name: string; type: string; visibility: string; ownerId?: string | null;
+  id: string; name: string; type: string; visibility: string; ownerId?: string | null; balance?: number;
 };
 type CategoryChild = { id: string; name: string; icon: string | null; isDefault: boolean; isHidden: boolean; };
 type CategoryParent = { id: string; name: string; icon: string | null; type: string; isDefault: boolean; isHidden: boolean; children: CategoryChild[]; };
@@ -48,12 +48,13 @@ function AddWalletSheet({ onClose, onDone }: { onClose: () => void; onDone: () =
   const [name, setName] = useState("");
   const [type, setType] = useState<"CASH"|"BANK"|"CREDIT_CARD"|"E_WALLET"|"OTHER">("CASH");
   const [visibility, setVisibility] = useState<"PERSONAL"|"FAMILY"|"CUSTOM">("FAMILY");
+  const [initialBalance, setInitialBalance] = useState("0");
   const [pending, startTransition] = useTransition();
 
   const handleSave = () => {
     if (!name.trim()) return;
     startTransition(async () => {
-      await createWallet({ name: name.trim(), type, visibility });
+      await createWallet({ name: name.trim(), type, visibility, initialBalance: parseFloat(initialBalance) || 0 });
       onDone();
     });
   };
@@ -99,7 +100,7 @@ function AddWalletSheet({ onClose, onDone }: { onClose: () => void; onDone: () =
 
         {/* 存取範圍 */}
         <label className="block text-xs mb-2" style={{ color: "var(--text-muted)" }}>存取範圍</label>
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-4">
           {[
             { k: "PERSONAL", label: "👤 僅限本人" },
             { k: "FAMILY",   label: "🏠 全家共用" },
@@ -115,6 +116,19 @@ function AddWalletSheet({ onClose, onDone }: { onClose: () => void; onDone: () =
               {label}
             </button>
           ))}
+        </div>
+
+        {/* 初始金額 */}
+        <label className="block text-xs mb-1" style={{ color: "var(--text-muted)" }}>初始餘額</label>
+        <div className="relative mb-6">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: "var(--text-muted)" }}>NT$</span>
+          <input
+            type="number"
+            className="w-full pl-10 pr-3 py-2.5 rounded-xl text-sm outline-none"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+            placeholder="0"
+            value={initialBalance} onChange={e => setInitialBalance(e.target.value)}
+          />
         </div>
 
         <motion.button
@@ -301,8 +315,13 @@ export default function SettingsClient({
         return (
           <motion.div key={w.id} layout className="glass-card px-4 py-3 flex items-center gap-3 mb-2">
             <span className="text-xl">{t.icon}</span>
-            <div className="flex-1">
-              <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{w.name}</p>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>{w.name}</p>
+                <span className="text-sm font-bold tabular-nums flex-shrink-0 ml-2" style={{ color: w.balance! < 0 ? "#f43f5e" : "var(--text-primary)" }}>
+                  NT$ {w.balance?.toLocaleString() || 0}
+                </span>
+              </div>
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>{t.label}</span>
                 <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: `${v.color}20`, color: v.color }}>
@@ -310,7 +329,7 @@ export default function SettingsClient({
                 </span>
               </div>
             </div>
-            <button onClick={() => handleDeleteWallet(w.id)} className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(244,63,94,0.1)" }}>
+            <button onClick={() => handleDeleteWallet(w.id)} className="w-7 h-7 flex-shrink-0 rounded-lg flex items-center justify-center ml-1" style={{ background: "rgba(244,63,94,0.1)" }}>
               <Trash2 size={12} color="#f43f5e" />
             </button>
           </motion.div>

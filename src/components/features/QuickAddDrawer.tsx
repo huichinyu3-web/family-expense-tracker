@@ -10,7 +10,7 @@ import { addTransaction } from "@/app/actions/transaction";
 import { useRouter } from "next/navigation";
 
 // ── Types ─────────────────────────────────────────────────────────────
-type WalletItem = { id: string; name: string; type: string; visibility: string };
+type WalletItem = { id: string; name: string; type: string; visibility: string; balance?: number };
 type CategoryChild = { id: string; name: string; icon: string | null };
 type CategoryParent = { id: string; name: string; icon: string | null; children: CategoryChild[] };
 type MerchantItem = { id: string; name: string };
@@ -81,6 +81,12 @@ export default function QuickAddDrawer({ open, onClose }: { open: boolean; onClo
     Promise.all([ getAccessibleWallets(), getCategories(type), getMerchants() ])
       .then(([w, c, m]) => {
         setWallets(w as WalletItem[]);
+        
+        // 預設選擇第一個帳戶
+        if (w.length > 0 && !selectedWalletId) {
+          setSelectedWalletId((w as WalletItem[])[0].id);
+        }
+
         setCategories(c as CategoryParent[]);
         setMerchants(m as MerchantItem[]);
       }).finally(() => setLoading(false));
@@ -104,8 +110,9 @@ export default function QuickAddDrawer({ open, onClose }: { open: boolean; onClo
       setAmount("0"); setSelectedParent(null); setSelectedChild(null);
       setNote(""); setSubmitted(false); setType("EXPENSE");
       setActivePanel(null); setSelectingParentId(null);
-      setSelectedWalletId(null); setMerchantInput(""); setRecurringType("NONE");
+      setMerchantInput(""); setRecurringType("NONE");
       setSelectedDate(new Date().toISOString().split("T")[0]);
+      // 保持 selectedWalletId 為上一次的選擇
     }, 300);
   }, [onClose]);
 
@@ -134,6 +141,9 @@ export default function QuickAddDrawer({ open, onClose }: { open: boolean; onClo
         recurringType: recurringType as any, installments,
       });
       router.refresh();
+      // 重新載入帳戶餘額
+      getAccessibleWallets().then(w => setWallets(w as WalletItem[]));
+      
       setTimeout(() => handleClose(), 600);
     } catch (error) {
       console.error(error);
@@ -296,7 +306,10 @@ export default function QuickAddDrawer({ open, onClose }: { open: boolean; onClo
                                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm"
                                 style={{ background: selectedWalletId===w.id ? "rgba(99,102,241,0.15)" : "var(--bg-surface)", border: selectedWalletId===w.id ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)", color: "var(--text-primary)" }}>
                                 <span>{WALLET_ICONS[w.type]??'💰'}</span>
-                                <span className="flex-1 text-left font-medium">{w.name}</span>
+                                <div className="flex-1 text-left flex flex-col">
+                                  <span className="font-medium">{w.name}</span>
+                                  <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>餘額 NT$ {w.balance?.toLocaleString() || 0}</span>
+                                </div>
                                 {selectedWalletId===w.id && <Check size={14} style={{ color:"#6366f1" }} />}
                               </button>
                             ))}
