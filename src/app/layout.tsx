@@ -11,7 +11,6 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Family Expense Tracker | 家庭記帳系統",
   description: "免費、無廣告、具備生物辨識的精品家庭共用記帳系統",
-  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
