@@ -13,7 +13,7 @@ type RecurringType = "NONE" | "DAILY" | "WORKDAY" | "WEEKLY" | "BIWEEKLY" |
   "MONTHLY" | "BIMONTHLY" | "QUARTERLY" | "SEMIANNUALLY" | "ANNUALLY" | "INSTALLMENT";
 
 // ── 確保使用者有 Family，沒有就自動建立 ──────────────────────────────
-async function ensureFamily(userId: string): Promise<string> {
+export async function ensureFamily(userId: string): Promise<string> {
   const membership = await db.query.familyMembers.findFirst({
     where: eq(familyMembers.userId, userId),
   });

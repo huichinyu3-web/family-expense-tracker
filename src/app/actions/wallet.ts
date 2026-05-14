@@ -41,6 +41,8 @@ export async function getAccessibleWallets() {
   return accessible;
 }
 
+import { ensureFamily } from "./transaction";
+
 // ── 建立新帳戶 ────────────────────────────────────────────────────────
 export async function createWallet(data: {
   name: string;
@@ -52,17 +54,13 @@ export async function createWallet(data: {
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const userId = session.user.id;
-
-  const membership = await db.query.familyMembers.findFirst({
-    where: eq(familyMembers.userId, userId),
-  });
-  if (!membership) throw new Error("No family found");
+  const familyId = await ensureFamily(userId);
 
   const walletId = crypto.randomUUID();
 
   await db.insert(wallets).values({
     id: walletId,
-    familyId: membership.familyId,
+    familyId: familyId,
     name: data.name,
     type: data.type,
     visibility: data.visibility,
