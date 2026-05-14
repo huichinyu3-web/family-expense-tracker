@@ -131,7 +131,7 @@ export async function toggleCategoryVisibility(categoryId: string, isHidden: boo
   return { success: true };
 }
 
-// ── 刪除自訂分類（isDefault = false 才能刪） ─────────────────────────
+// ── 刪除自訂分類（isDefault = false 才能刪；有交易紀錄則封鎖）──────
 export async function deleteCategory(categoryId: string) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Unauthorized");
@@ -140,9 +140,39 @@ export async function deleteCategory(categoryId: string) {
     where: eq(categories.id, categoryId),
   });
   if (!cat) throw new Error("Category not found");
-  if (cat.isDefault) throw new Error("Cannot delete a default category");
+  if (cat.isDefault) throw new Error("系統預設分類無法刪除");
 
+  // 檢查是否有交易使用此分類（含子分類）
+  const { transactions } = await import("@/lib/db/schema");
+  const { eq: eqOp, or: orOp } = await import("drizzle-orm");
+
+  // 先收集此分類及其所有子分類的 id
+  const children = await db.query.categories.findMany({
+    where: eq(categories.parentId, categoryId),
+    columns: { id: true },
+  });
+  const catIds = [categoryId, ...children.map(c => c.id)];
+
+  // 計算有多少交易用到這些分類
+  let txCount = 0;
+  for (const cid of catIds) {
+    const txs = await db.query.transactions.findMany({
+      where: eq(transactions.categoryId, cid),
+      columns: { id: true },
+    });
+    txCount += txs.length;
+  }
+
+  if (txCount > 0) {
+    throw new Error(`此分類已有 ${txCount} 筆交易記錄，無法刪除。請先修改或刪除相關交易。`);
+  }
+
+  // 先刪子分類，再刪大項
+  for (const child of children) {
+    await db.delete(categories).where(eq(categories.id, child.id));
+  }
   await db.delete(categories).where(eq(categories.id, categoryId));
+  
   revalidatePath("/settings");
   return { success: true };
 }

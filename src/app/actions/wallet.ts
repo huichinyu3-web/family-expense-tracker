@@ -137,10 +137,35 @@ export async function createWallet(data: {
   return { success: true, walletId };
 }
 
-// ── 刪除帳戶（只有 OWNER 或 ADMIN 可以刪） ───────────────────────────
-export async function deleteWallet(walletId: string) {
+// ── 查詢帳戶下的交易數量（刪除前確認用）──────────────────────────────
+export async function getWalletTxCount(walletId: string): Promise<number> {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Unauthorized");
+
+  const txs = await db.query.transactions.findMany({
+    where: eq(transactions.walletId, walletId),
+    columns: { id: true },
+  });
+  return txs.length;
+}
+
+// ── 刪除帳戶（Strategy B：確認後串聯刪除）───────────────────────────
+export async function deleteWallet(walletId: string, force = false) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  // 取得交易數量
+  const txCount = await getWalletTxCount(walletId);
+
+  // 若有交易但非強制模式，回傳 needsConfirm
+  if (txCount > 0 && !force) {
+    return { needsConfirm: true, txCount };
+  }
+
+  // 串聯刪除：先刪交易，再刪帳戶
+  if (txCount > 0) {
+    await db.delete(transactions).where(eq(transactions.walletId, walletId));
+  }
 
   await db.delete(wallets).where(eq(wallets.id, walletId));
   revalidatePath("/settings");

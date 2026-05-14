@@ -167,9 +167,19 @@ export default function SettingsClient({
   const [newChildIcon, setNewChildIcon] = useState("📦");
   const [isPending, startTransition] = useTransition();
 
-  const handleDeleteWallet = (id: string) => {
+  const handleDeleteWallet = (id: string, name: string) => {
     startTransition(async () => {
-      await deleteWallet(id);
+      // 第一次：不帶 force，取得確認資訊
+      const result = await deleteWallet(id, false);
+      if (result && 'needsConfirm' in result && result.needsConfirm) {
+        const confirmed = confirm(
+          `⚠️ 警告：「${name}」帳戶下有 ${result.txCount} 筆交易記錄。\n\n` +
+          `刪除帳戶將會一併永久刪除這 ${result.txCount} 筆交易，此操作無法復原！\n\n確定要繼續嗎？`
+        );
+        if (!confirmed) return;
+        // 第二次：帶 force 真正執行
+        await deleteWallet(id, true);
+      }
       router.refresh();
     });
   };
@@ -192,8 +202,12 @@ export default function SettingsClient({
 
   const handleDeleteCat = (id: string) => {
     startTransition(async () => {
-      await deleteCategory(id);
-      router.refresh();
+      try {
+        await deleteCategory(id);
+        router.refresh();
+      } catch (e: any) {
+        alert(`❌ 無法刪除分類\n\n${e.message}`);
+      }
     });
   };
 
@@ -333,7 +347,7 @@ export default function SettingsClient({
                 </span>
               </div>
             </div>
-            <button onClick={() => handleDeleteWallet(w.id)} className="w-7 h-7 flex-shrink-0 rounded-lg flex items-center justify-center ml-1" style={{ background: "rgba(244,63,94,0.1)" }}>
+            <button onClick={() => handleDeleteWallet(w.id, w.name)} className="w-7 h-7 flex-shrink-0 rounded-lg flex items-center justify-center ml-1" style={{ background: "rgba(244,63,94,0.1)" }}>
               <Trash2 size={12} color="#f43f5e" />
             </button>
           </motion.div>
