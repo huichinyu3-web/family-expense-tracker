@@ -12,6 +12,7 @@ import { createParentCategory, createChildCategory, toggleCategoryVisibility, de
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import InviteSheet from "@/components/features/InviteSheet";
+import FamilyMembersPanel from "@/components/features/FamilyMembersPanel";
 
 // ── 型別 ──────────────────────────────────────────────────────────────
 type Wallet = {
@@ -150,7 +151,7 @@ function AddWalletSheet({ onClose, onDone }: { onClose: () => void; onDone: () =
 export default function SettingsClient({
   user, wallets, incomeCategories, expenseCategories,
 }: {
-  user: { name?: string | null; email?: string | null; image?: string | null; systemRole?: string } | null;
+  user: { id?: string | null; name?: string | null; email?: string | null; image?: string | null; systemRole?: string } | null;
   wallets: Wallet[];
   incomeCategories: CategoryParent[];
   expenseCategories: CategoryParent[];
@@ -158,6 +159,7 @@ export default function SettingsClient({
   const router = useRouter();
   const [showAddWallet, setShowAddWallet] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
+  const [showMembers, setShowMembers] = useState(false);
   const [expandedCatType, setExpandedCatType] = useState<"INCOME"|"EXPENSE"|null>(null);
   const [expandedParent, setExpandedParent] = useState<string | null>(null);
   const [showAddChildFor, setShowAddChildFor] = useState<string | null>(null);
@@ -371,15 +373,27 @@ export default function SettingsClient({
       {/* ── 家庭設定 ── */}
       <div className="mt-2">
         <SectionTitle>👨‍👩‍👧 家庭設定</SectionTitle>
-        <motion.button onClick={() => alert("「管理成員」功能將於下一個版本 (Phase 6) 推出，敬請期待！")} whileTap={{ scale: 0.98 }} className="w-full glass-card px-4 py-3.5 flex items-center gap-3 mb-2 text-left">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "var(--bg-card)" }}>
+
+        {/* 管理成員 手風琴 */}
+        <motion.button onClick={() => setShowMembers(v => !v)} whileTap={{ scale: 0.98 }}
+          className="w-full glass-card px-4 py-3.5 flex items-center gap-3 mb-2 text-left">
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "rgba(99,102,241,0.1)" }}>
             <Users size={16} style={{ color: "#6366f1" }} />
           </div>
           <div className="flex-1">
             <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>管理家庭成員</p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>查看成員、修改角色或移除</p>
           </div>
-          <ChevronRight size={14} style={{ color: "var(--text-muted)" }} />
+          <ChevronRight size={14} style={{ color: "var(--text-muted)", transform: showMembers ? "rotate(90deg)" : "none", transition: "0.2s" }} />
         </motion.button>
+
+        <AnimatePresence>
+          {showMembers && (
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden mb-2">
+              <FamilyMembersPanel currentUserId={user?.id ?? ""} />
+            </motion.div>
+          )}
+        </AnimatePresence>
         <motion.button onClick={() => setShowInvite(true)} whileTap={{ scale: 0.98 }} className="w-full glass-card px-4 py-3.5 flex items-center gap-3 mb-2 text-left">
           <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "rgba(99,102,241,0.15)" }}>
             <Shield size={16} style={{ color: "#6366f1" }} />

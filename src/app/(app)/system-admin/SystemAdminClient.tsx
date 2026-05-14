@@ -1,106 +1,188 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { Users, Home, ShieldAlert, ShieldCheck } from "lucide-react";
-import { toggleUserRole } from "@/app/actions/admin";
-import { useTransition } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useState, useTransition } from "react";
+import { toggleUserSystemRole, adminUpdateFamilyMemberRole, adminRemoveFamilyMember } from "@/app/actions/admin";
 import { useRouter } from "next/navigation";
+import { Users, Home, ShieldAlert, ShieldCheck, ChevronDown, ChevronRight, Trash2, Crown } from "lucide-react";
+
+const ROLE_LABELS: Record<string, { label: string; color: string; icon: string }> = {
+  OWNER:  { label: "擁有者", color: "#f59e0b", icon: "👑" },
+  ADMIN:  { label: "管理員", color: "#6366f1", icon: "🛡️" },
+  MEMBER: { label: "一般成員", color: "#10b981", icon: "👤" },
+  VIEWER: { label: "觀察者", color: "#6b7280", icon: "👁️" },
+};
+
+const ALL_FAMILY_ROLES = ["ADMIN", "MEMBER", "VIEWER"] as const;
 
 export default function SystemAdminClient({ stats }: { stats: any }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [expandedFamily, setExpandedFamily] = useState<string | null>(null);
+  const [changingRole, setChangingRole] = useState<string | null>(null); // memberId
 
-  const handleToggleRole = (userId: string, currentRole: string) => {
-    if (confirm(`確定要切換此用戶的權限嗎？\n(目前: ${currentRole})`)) {
-      startTransition(async () => {
-        await toggleUserRole(userId, currentRole);
-        router.refresh();
-      });
-    }
+  const handleToggleSystemRole = (userId: string, currentRole: string) => {
+    if (!confirm(`確定要切換此用戶的系統權限？\n(目前: ${currentRole})`)) return;
+    startTransition(async () => {
+      await toggleUserSystemRole(userId, currentRole);
+      router.refresh();
+    });
+  };
+
+  const handleFamilyRoleChange = (memberId: string, newRole: string) => {
+    startTransition(async () => {
+      await adminUpdateFamilyMemberRole(memberId, newRole as any);
+      setChangingRole(null);
+      router.refresh();
+    });
+  };
+
+  const handleRemoveMember = (memberId: string, name: string) => {
+    if (!confirm(`確定要將「${name}」從此家庭中移除嗎？`)) return;
+    startTransition(async () => {
+      await adminRemoveFamilyMember(memberId);
+      router.refresh();
+    });
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg-main)] p-6">
+    <div className="min-h-screen p-4 md:p-6" style={{ background: "var(--bg-main)" }}>
       <div className="max-w-4xl mx-auto">
-        
+
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: "#f43f5e" }}>
-              <ShieldAlert size={24} /> 系統最高權限管理中心
+            <h1 className="text-xl font-bold flex items-center gap-2 text-red-500">
+              <ShieldAlert size={22} /> 系統管理中心
             </h1>
-            <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>此區域僅供 System Admin 存取，嚴禁窺探家庭內部明細。</p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>僅限 System Admin | 禁止查閱家庭帳務明細</p>
           </div>
-          <button onClick={() => router.push("/")} className="px-4 py-2 rounded-xl text-sm font-bold bg-white/10 text-white">
+          <button onClick={() => router.push("/")}
+            className="px-3 py-1.5 rounded-xl text-xs font-bold border"
+            style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}>
             返回首頁
           </button>
         </div>
 
-        {/* Overview Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="glass-card p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-blue-500/20 text-blue-500">
-              <Users size={24} />
+        {/* Stats */}
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          {[
+            { icon: <Users size={20} />, label: "總註冊人數", value: stats.totalUsers, color: "#6366f1" },
+            { icon: <Home size={20} />, label: "家庭群組數", value: stats.totalFamilies, color: "#10b981" },
+          ].map(s => (
+            <div key={s.label} className="glass-card p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
+                style={{ background: `${s.color}20`, color: s.color }}>{s.icon}</div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--text-muted)" }}>{s.label}</p>
+                <p className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>{s.value}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs font-semibold uppercase text-gray-400">總註冊人數</p>
-              <p className="text-2xl font-bold text-white">{stats.totalUsers}</p>
-            </div>
-          </div>
-          <div className="glass-card p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-green-500/20 text-green-500">
-              <Home size={24} />
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase text-gray-400">建立家庭數</p>
-              <p className="text-2xl font-bold text-white">{stats.totalFamilies}</p>
-            </div>
-          </div>
+          ))}
         </div>
 
-        {/* User Management */}
-        <h2 className="text-lg font-bold text-white mb-4">帳號管理列表</h2>
+        {/* ── 家庭群組管理 ── */}
+        <h2 className="text-sm font-bold mb-3 uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>🏠 家庭群組管理</h2>
+        <div className="flex flex-col gap-2 mb-6">
+          {stats.families.map((f: any) => (
+            <div key={f.id} className="glass-card overflow-hidden">
+              <button onClick={() => setExpandedFamily(expandedFamily === f.id ? null : f.id)}
+                className="w-full flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">🏠</span>
+                  <div className="text-left">
+                    <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{f.name}</p>
+                    <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{f.members.length} 位成員</p>
+                  </div>
+                </div>
+                {expandedFamily === f.id ? <ChevronDown size={16} style={{ color: "var(--text-muted)" }} /> : <ChevronRight size={16} style={{ color: "var(--text-muted)" }} />}
+              </button>
+
+              <AnimatePresence>
+                {expandedFamily === f.id && (
+                  <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden">
+                    <div className="px-4 pb-3 flex flex-col gap-2 border-t" style={{ borderColor: "var(--border)" }}>
+                      {f.members.map((m: any) => {
+                        const rl = ROLE_LABELS[m.role] ?? { label: m.role, color: "#999", icon: "?" };
+                        return (
+                          <div key={m.id} className="flex items-center gap-3 py-2">
+                            {m.user?.image
+                              ? <img src={m.user.image} alt="" className="w-8 h-8 rounded-full flex-shrink-0" />
+                              : <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center bg-gray-600 text-xs text-white">{m.user?.name?.[0] ?? "?"}</div>}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>{m.user?.name ?? "未知"}</p>
+                              <p className="text-[10px] truncate" style={{ color: "var(--text-muted)" }}>{m.user?.email}</p>
+                            </div>
+
+                            {/* 角色 badge / 選單 */}
+                            {m.role === "OWNER"
+                              ? <span className="text-xs px-2 py-1 rounded-lg font-bold flex-shrink-0"
+                                  style={{ background: `${rl.color}20`, color: rl.color }}>{rl.icon} {rl.label}</span>
+                              : (
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  <select
+                                    disabled={pending}
+                                    value={m.role}
+                                    onChange={e => handleFamilyRoleChange(m.id, e.target.value)}
+                                    className="text-xs rounded-lg px-2 py-1.5 outline-none"
+                                    style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-primary)" }}>
+                                    {ALL_FAMILY_ROLES.map(r => (
+                                      <option key={r} value={r}>{ROLE_LABELS[r].icon} {ROLE_LABELS[r].label}</option>
+                                    ))}
+                                  </select>
+                                  <button onClick={() => handleRemoveMember(m.id, m.user?.name ?? "此成員")} disabled={pending}
+                                    className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                                    style={{ background: "rgba(244,63,94,0.1)" }}>
+                                    <Trash2 size={12} color="#f43f5e" />
+                                  </button>
+                                </div>
+                              )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          ))}
+        </div>
+
+        {/* ── 系統帳號管理 ── */}
+        <h2 className="text-sm font-bold mb-3 uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>👤 系統帳號管理</h2>
         <div className="glass-card overflow-hidden">
           <table className="w-full text-left text-sm">
-            <thead className="bg-black/20 text-gray-400">
+            <thead className="text-[11px] uppercase" style={{ background: "var(--bg-card)", color: "var(--text-muted)" }}>
               <tr>
-                <th className="px-4 py-3 font-medium">用戶 ID / 姓名</th>
-                <th className="px-4 py-3 font-medium">Email</th>
-                <th className="px-4 py-3 font-medium">系統權限</th>
-                <th className="px-4 py-3 font-medium text-right">操作</th>
+                <th className="px-4 py-3 font-semibold">用戶</th>
+                <th className="px-4 py-3 font-semibold">系統權限</th>
+                <th className="px-4 py-3 font-semibold text-right">操作</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/10">
+            <tbody className="divide-y" style={{ borderColor: "var(--border)" }}>
               {stats.users.map((u: any) => (
                 <tr key={u.id} className="hover:bg-white/5 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      {u.image ? (
-                        <img src={u.image} alt="avatar" className="w-8 h-8 rounded-full" />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-xs text-white">U</div>
-                      )}
-                      <div>
-                        <p className="font-semibold text-white">{u.name || "無名稱"}</p>
-                        <p className="text-[10px] text-gray-500">{u.id}</p>
+                      {u.image
+                        ? <img src={u.image} alt="" className="w-8 h-8 rounded-full flex-shrink-0" />
+                        : <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center bg-gray-600 text-xs text-white">{u.name?.[0] ?? "?"}</div>}
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold truncate" style={{ color: "var(--text-primary)" }}>{u.name || "無名稱"}</p>
+                        <p className="text-[10px] truncate" style={{ color: "var(--text-muted)" }}>{u.email}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-gray-300">{u.email}</td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded-md text-[10px] font-bold ${
-                      u.systemRole === "SYSTEM_ADMIN" ? "bg-red-500/20 text-red-500" : "bg-blue-500/20 text-blue-500"
-                    }`}>
+                    <span className={`px-2 py-1 rounded-lg text-[10px] font-bold ${u.systemRole === "SYSTEM_ADMIN" ? "bg-red-500/20 text-red-500" : "bg-blue-500/20 text-blue-400"}`}>
                       {u.systemRole}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => handleToggleRole(u.id, u.systemRole)}
-                      disabled={pending}
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-white/20 text-gray-300 hover:bg-white/10 transition-colors disabled:opacity-50"
-                    >
-                      {u.systemRole === "SYSTEM_ADMIN" ? "降級為 USER" : "升級為 ADMIN"}
+                    <button onClick={() => handleToggleSystemRole(u.id, u.systemRole)} disabled={pending}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors hover:bg-white/10 disabled:opacity-50"
+                      style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}>
+                      {u.systemRole === "SYSTEM_ADMIN" ? "降為 USER" : "升為 ADMIN"}
                     </button>
                   </td>
                 </tr>
@@ -108,7 +190,6 @@ export default function SystemAdminClient({ stats }: { stats: any }) {
             </tbody>
           </table>
         </div>
-
       </div>
     </div>
   );
