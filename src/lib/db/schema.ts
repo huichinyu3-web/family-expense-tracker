@@ -16,6 +16,7 @@ export const users = sqliteTable("users", {
   email: text("email").unique(),
   emailVerified: integer("email_verified", { mode: "timestamp_ms" }),
   image: text("image"),
+  systemRole: text("system_role", { enum: ["USER", "SYSTEM_ADMIN"] }).notNull().default("USER"),
   createdAt: integer("created_at").default(sql`(cast(strftime('%s', 'now') as integer))`),
 });
 
