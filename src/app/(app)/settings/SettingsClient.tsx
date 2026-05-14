@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useTransition } from "react";
 import {
-  Fingerprint, Shield, ChevronRight, Users, Bell,
+  Fingerprint, Shield, ShieldAlert, ChevronRight, Users, Bell,
   Trash2, LogOut, Moon, Globe, Key, Plus, Wallet,
   Tag, X, ChevronDown, ChevronUp, Eye, EyeOff
 } from "lucide-react";
@@ -149,7 +149,7 @@ function AddWalletSheet({ onClose, onDone }: { onClose: () => void; onDone: () =
 export default function SettingsClient({
   user, wallets, incomeCategories, expenseCategories,
 }: {
-  user: { name?: string | null; email?: string | null; image?: string | null } | null;
+  user: { name?: string | null; email?: string | null; image?: string | null; systemRole?: string } | null;
   wallets: Wallet[];
   incomeCategories: CategoryParent[];
   expenseCategories: CategoryParent[];
@@ -393,6 +393,23 @@ export default function SettingsClient({
       {/* ── 帳號 ── */}
       <div className="mt-4 mb-6">
         <SectionTitle>🔑 帳號</SectionTitle>
+
+        {user?.systemRole === "SYSTEM_ADMIN" && (
+          <motion.button
+            whileTap={{ scale: 0.98 }}
+            onClick={() => router.push("/system-admin")}
+            className="w-full glass-card px-4 py-3.5 flex items-center gap-3 text-left mb-2 border border-red-500/30">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-red-500/10">
+              <ShieldAlert size={16} color="#f43f5e" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-red-500">進入系統管理中心</p>
+              <p className="text-[10px] text-red-500/70">超級管理員專屬</p>
+            </div>
+            <ChevronRight size={14} className="text-red-500/50" />
+          </motion.button>
+        )}
+
         <motion.button
           whileTap={{ scale: 0.98 }}
           onClick={() => signOut({ callbackUrl: "/login" })}
