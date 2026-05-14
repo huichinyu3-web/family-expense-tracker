@@ -350,7 +350,7 @@ export default function SettingsClient({
       {/* ── 家庭設定 ── */}
       <div className="mt-2">
         <SectionTitle>👨‍👩‍👧 家庭設定</SectionTitle>
-        <motion.button whileTap={{ scale: 0.98 }} className="w-full glass-card px-4 py-3.5 flex items-center gap-3 mb-2 text-left">
+        <motion.button onClick={() => alert("「管理成員」功能將於下一個版本 (Phase 6) 推出，敬請期待！")} whileTap={{ scale: 0.98 }} className="w-full glass-card px-4 py-3.5 flex items-center gap-3 mb-2 text-left">
           <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "var(--bg-card)" }}>
             <Users size={16} style={{ color: "#6366f1" }} />
           </div>
@@ -359,7 +359,7 @@ export default function SettingsClient({
           </div>
           <ChevronRight size={14} style={{ color: "var(--text-muted)" }} />
         </motion.button>
-        <motion.button whileTap={{ scale: 0.98 }} className="w-full glass-card px-4 py-3.5 flex items-center gap-3 mb-2 text-left">
+        <motion.button onClick={() => alert("「邀請成員連結」功能將於下一個版本 (Phase 6) 推出，敬請期待！")} whileTap={{ scale: 0.98 }} className="w-full glass-card px-4 py-3.5 flex items-center gap-3 mb-2 text-left">
           <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "var(--bg-card)" }}>
             <Shield size={16} style={{ color: "#6366f1" }} />
           </div>
