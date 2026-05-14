@@ -11,6 +11,7 @@ import { createWallet, deleteWallet } from "@/app/actions/wallet";
 import { createParentCategory, createChildCategory, toggleCategoryVisibility, deleteCategory } from "@/app/actions/category";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import InviteSheet from "@/components/features/InviteSheet";
 
 // ── 型別 ──────────────────────────────────────────────────────────────
 type Wallet = {
@@ -156,6 +157,7 @@ export default function SettingsClient({
 }) {
   const router = useRouter();
   const [showAddWallet, setShowAddWallet] = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
   const [expandedCatType, setExpandedCatType] = useState<"INCOME"|"EXPENSE"|null>(null);
   const [expandedParent, setExpandedParent] = useState<string | null>(null);
   const [showAddChildFor, setShowAddChildFor] = useState<string | null>(null);
@@ -378,8 +380,8 @@ export default function SettingsClient({
           </div>
           <ChevronRight size={14} style={{ color: "var(--text-muted)" }} />
         </motion.button>
-        <motion.button onClick={() => alert("「邀請成員連結」功能將於下一個版本 (Phase 6) 推出，敬請期待！")} whileTap={{ scale: 0.98 }} className="w-full glass-card px-4 py-3.5 flex items-center gap-3 mb-2 text-left">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "var(--bg-card)" }}>
+        <motion.button onClick={() => setShowInvite(true)} whileTap={{ scale: 0.98 }} className="w-full glass-card px-4 py-3.5 flex items-center gap-3 mb-2 text-left">
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "rgba(99,102,241,0.15)" }}>
             <Shield size={16} style={{ color: "#6366f1" }} />
           </div>
           <div className="flex-1">
@@ -437,6 +439,19 @@ export default function SettingsClient({
               onClose={() => setShowAddWallet(false)}
               onDone={() => { setShowAddWallet(false); router.refresh(); }}
             />
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── 邀請成員 Sheet ── */}
+      <AnimatePresence>
+        {showInvite && (
+          <>
+            <motion.div className="fixed inset-0 z-[60]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+              onClick={() => setShowInvite(false)}
+            />
+            <InviteSheet onClose={() => setShowInvite(false)} />
           </>
         )}
       </AnimatePresence>
