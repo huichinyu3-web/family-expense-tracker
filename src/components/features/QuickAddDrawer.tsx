@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 // ── Types ─────────────────────────────────────────────────────────────
 type WalletItem = { id: string; name: string; type: string; visibility: string; balance?: number };
 type CategoryChild = { id: string; name: string; icon: string | null };
-type CategoryParent = { id: string; name: string; icon: string | null; children: CategoryChild[] };
+type CategoryParent = { id: string; name: string; type: string; icon: string | null; children: CategoryChild[] };
 type MerchantItem = { id: string; name: string };
 
 const KEYS = ["1","2","3","4","5","6","7","8","9",".","0","⌫"];
@@ -70,37 +70,35 @@ export default function QuickAddDrawer({ open, onClose }: { open: boolean; onClo
 
   // 資料
   const [wallets, setWallets]       = useState<WalletItem[]>([]);
-  const [categories, setCategories] = useState<CategoryParent[]>([]);
+  const [allCategories, setAllCategories] = useState<CategoryParent[]>([]);
   const [merchants, setMerchants]   = useState<MerchantItem[]>([]);
   const [loading, setLoading]       = useState(false);
+
+  const categories = useMemo(() => allCategories.filter(c => c.type === type), [allCategories, type]);
 
   // 初始化載入
   useEffect(() => {
     if (!open) return;
     setLoading(true);
-    Promise.all([ getAccessibleWallets(), getCategories(type), getMerchants() ])
+    // 一次性載入全部（不帶 type 參數）
+    Promise.all([ getAccessibleWallets(), getCategories(), getMerchants() ])
       .then(([w, c, m]) => {
         setWallets(w as WalletItem[]);
-        
         // 預設選擇第一個帳戶
         if (w.length > 0 && !selectedWalletId) {
           setSelectedWalletId((w as WalletItem[])[0].id);
         }
-
-        setCategories(c as CategoryParent[]);
+        setAllCategories(c as CategoryParent[]);
         setMerchants(m as MerchantItem[]);
       }).finally(() => setLoading(false));
-  }, [open, type]);
+  }, [open]);
 
-  // 切換收支類型時重載分類
+  // 切換收支類型時重置選擇狀態
   useEffect(() => {
     if (!open) return;
-    getCategories(type).then(c => {
-      setCategories(c as CategoryParent[]);
-      setSelectedParent(null);
-      setSelectedChild(null);
-      setSelectingParentId(null);
-    });
+    setSelectedParent(null);
+    setSelectedChild(null);
+    setSelectingParentId(null);
   }, [type, open]);
 
   // 重置
