@@ -10,11 +10,13 @@ export default function LoginPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  // 如果已登入，自動跳往 Dashboard
+  // 如果已登入，3 秒後自動跳往 Dashboard
   useEffect(() => {
-    if (status === "authenticated") {
+    if (status !== "authenticated") return;
+    const timer = setTimeout(() => {
       router.replace("/dashboard");
-    }
+    }, 3000);
+    return () => clearTimeout(timer); // 若使用者提前點「繼續使用」則取消計時器
   }, [status, router]);
 
   // 載入中（避免閃爍）
