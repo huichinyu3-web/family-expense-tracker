@@ -198,3 +198,53 @@ export async function deleteTransaction(transactionId: string) {
   revalidatePath("/transactions");
   return { success: true };
 }
+
+// ── 更新交易紀錄（僅限本人） ──────────────────────────────────────────
+export async function updateTransaction(
+  transactionId: string,
+  data: {
+    amount: number;
+    type: "EXPENSE" | "INCOME";
+    categoryId: string;
+    note?: string;
+    date?: number;
+    walletId?: string;
+    merchantName?: string;
+    recurringType?: RecurringType;
+    installments?: number;
+  }
+) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  const tx = await db.query.transactions.findFirst({
+    where: eq(transactions.id, transactionId),
+  });
+
+  if (!tx) throw new Error("Transaction not found");
+  if (tx.userId !== session.user.id) throw new Error("您只能編輯自己建立的紀錄");
+
+  const amount = data.type === "EXPENSE" ? -Math.abs(data.amount) : Math.abs(data.amount);
+
+  let merchantId: string | null = null;
+  if (data.merchantName?.trim()) {
+    const merchant = await findOrCreateMerchant(data.merchantName.trim());
+    merchantId = merchant.id;
+  }
+
+  // 目前編輯功能只支援修改該筆單筆紀錄（若是分期付款，也只改這單筆，不連動）
+  await db.update(transactions).set({
+    categoryId: data.categoryId,
+    amount,
+    type: data.type,
+    date: data.date ?? tx.date,
+    note: data.note ?? null,
+    walletId: data.walletId ?? null,
+    merchantId,
+    recurringType: data.recurringType ?? tx.recurringType,
+  }).where(eq(transactions.id, transactionId));
+
+  revalidatePath("/dashboard");
+  revalidatePath("/transactions");
+  return { success: true };
+}

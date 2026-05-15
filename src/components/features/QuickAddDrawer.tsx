@@ -6,7 +6,7 @@ import { X, Check, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { getAccessibleWallets } from "@/app/actions/wallet";
 import { getCategories, createChildCategory } from "@/app/actions/category";
 import { getMerchants } from "@/app/actions/merchant";
-import { addTransaction } from "@/app/actions/transaction";
+import { addTransaction, updateTransaction } from "@/app/actions/transaction";
 import { useRouter } from "next/navigation";
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -57,7 +57,7 @@ function ListRow({ icon, label, value, onClick, active, valueColor }: any) {
 }
 
 // ── Main Drawer ───────────────────────────────────────────────────────
-export default function QuickAddDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function QuickAddDrawer({ open, onClose, editData }: { open: boolean; onClose: () => void; editData?: any }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -95,11 +95,26 @@ export default function QuickAddDrawer({ open, onClose }: { open: boolean; onClo
     Promise.all([getAccessibleWallets(), getCategories(), getMerchants()])
       .then(([w, c, m]) => {
         setWallets(w as WalletItem[]);
-        if (w.length > 0 && !selectedWalletId) setSelectedWalletId((w as WalletItem[])[0].id);
         setAllCategories(c as CategoryParent[]);
         setMerchants(m as MerchantItem[]);
+
+        if (editData) {
+          setType(editData.type);
+          setExpr(Math.abs(editData.amount).toString());
+          setSelectedChild(editData.categoryId);
+          const parent = (c as CategoryParent[]).find(p => p.children.some(child => child.id === editData.categoryId));
+          if (parent) setSelectedParent(parent.id);
+          setSelectedWalletId(editData.walletId || null);
+          const d = new Date(editData.date);
+          setSelectedDate(`${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`);
+          setMerchantInput(editData.merchant?.name || "");
+          setRecurringType(editData.recurringType || "NONE");
+          setNote(editData.note || "");
+        } else {
+          if (w.length > 0 && !selectedWalletId) setSelectedWalletId((w as WalletItem[])[0].id);
+        }
       });
-  }, [open]);
+  }, [open, editData]);
 
   // 重置
   const handleClose = useCallback(() => {
@@ -156,7 +171,7 @@ export default function QuickAddDrawer({ open, onClose }: { open: boolean; onClo
     setSubmitted(true);
     try {
       const ts = new Date(selectedDate).getTime() + (new Date().getTime() % 86400000);
-      await addTransaction({ 
+      const dataToSave = { 
         type, 
         amount: finalAmount, 
         categoryId: selectedChild!, 
@@ -166,7 +181,14 @@ export default function QuickAddDrawer({ open, onClose }: { open: boolean; onClo
         merchantName: merchantInput,
         recurringType: recurringType as any,
         installments: recurringType === "INSTALLMENT" ? installments : undefined
-      });
+      };
+
+      if (editData) {
+        await updateTransaction(editData.id, dataToSave);
+      } else {
+        await addTransaction(dataToSave);
+      }
+      
       router.refresh();
       getAccessibleWallets().then(w => setWallets(w as WalletItem[]));
       setTimeout(() => handleClose(), 600);

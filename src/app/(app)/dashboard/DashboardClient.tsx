@@ -8,6 +8,7 @@ import { CountUp } from "@/components/ui/CountUp";
 import { deleteTransaction } from "@/app/actions/transaction";
 import { useRouter } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
+import QuickAddDrawer from "@/components/features/QuickAddDrawer";
 
 const CHART_COLORS = ["#6366f1", "#1c1c27"];
 const MONTHS = ["一月","二月","三月","四月","五月","六月","七月","八月","九月","十月","十一月","十二月"];
@@ -42,6 +43,8 @@ export default function DashboardClient({ transactions, currentUserId, userName,
   const [year, setYear] = useState(now.getFullYear());
   const [view, setView] = useState<"MY" | "FAMILY">("FAMILY");
   const [selectedTx, setSelectedTx] = useState<any>(null);
+  const [editTxData, setEditTxData] = useState<any>(null);
+  const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
 
   const handleDelete = () => {
     if (!selectedTx || selectedTx.userId !== currentUserId) return;
@@ -328,7 +331,7 @@ export default function DashboardClient({ transactions, currentUserId, userName,
 
               {selectedTx.userId === currentUserId ? (
                 <div className="flex gap-3">
-                  <button onClick={() => alert("編輯功能即將推出，敬請期待！")}
+                  <button onClick={() => { setEditTxData(selectedTx); setIsEditDrawerOpen(true); setSelectedTx(null); }}
                     className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-bold bg-[var(--bg-card)] text-[var(--text-primary)] border border-[var(--border)]">
                     <Edit2 size={16} /> 編輯
                   </button>
@@ -347,6 +350,13 @@ export default function DashboardClient({ transactions, currentUserId, userName,
           </>
         )}
       </AnimatePresence>
+
+      {/* ── 編輯專用 Drawer ── */}
+      <QuickAddDrawer 
+        open={isEditDrawerOpen} 
+        onClose={() => { setIsEditDrawerOpen(false); setEditTxData(null); }} 
+        editData={editTxData} 
+      />
 
     </div>
   );
