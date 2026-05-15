@@ -170,7 +170,7 @@ export default function QuickAddDrawer({ open, onClose }: { open: boolean; onClo
         walletId: selectedWalletId || undefined, 
         merchantName: merchantInput,
         recurringType: recurringType as any,
-        installments: recurringType === "INSTALLMENT" ? installments : null
+        installments: recurringType === "INSTALLMENT" ? installments : undefined
       });
       router.refresh();
       getAccessibleWallets().then(w => setWallets(w as WalletItem[]));
