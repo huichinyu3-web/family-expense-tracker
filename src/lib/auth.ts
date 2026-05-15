@@ -14,6 +14,9 @@ import {
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   basePath: "/api/auth",
+  // ── JWT Strategy：Session 存在加密 Cookie，不依賴 DB ────────────────
+  // 好處：重新部署後 Session 不失效，避免循環登入問題
+  session: { strategy: "jwt" },
   adapter: DrizzleAdapter(db, {
     usersTable: users,
     accountsTable: accounts,
@@ -27,14 +30,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: { params: { prompt: "select_account" } },
     }),
-    WebAuthn, // 臉部/指紋辨識
+    WebAuthn,
   ],
   experimental: { enableWebAuthn: true },
   callbacks: {
-    async session({ session, user }) {
-      // 將 user.id 注入 session，供所有 API Route 使用
-      if (session.user) {
-        session.user.id = user.id;
+    // JWT callback：登入時將 user.id 寫入 token
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+      }
+      return token;
+    },
+    // Session callback：從 token 取出 id 注入 session
+    async session({ session, token }) {
+      if (session.user && token.id) {
+        session.user.id = token.id as string;
       }
       return session;
     },
