@@ -2,9 +2,12 @@
 
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { motion } from "framer-motion";
-import { TrendingDown, TrendingUp, ChevronLeft, ChevronRight, Bell, User, Users } from "lucide-react";
-import { useState, useMemo } from "react";
+import { TrendingDown, TrendingUp, ChevronLeft, ChevronRight, Bell, User, Users, Trash2, Edit2, X } from "lucide-react";
+import { useState, useMemo, useTransition } from "react";
 import { CountUp } from "@/components/ui/CountUp";
+import { deleteTransaction } from "@/app/actions/transaction";
+import { useRouter } from "next/navigation";
+import { AnimatePresence } from "framer-motion";
 
 const CHART_COLORS = ["#6366f1", "#1c1c27"];
 const MONTHS = ["一月","二月","三月","四月","五月","六月","七月","八月","九月","十月","十一月","十二月"];
@@ -33,9 +36,27 @@ function Avatar({ initial, colorId }: { initial: string; colorId: string }) {
 // @ts-ignore
 export default function DashboardClient({ transactions, currentUserId, userName, familyName }) {
   const now = new Date();
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [monthIdx, setMonthIdx] = useState(now.getMonth());
   const [year, setYear] = useState(now.getFullYear());
   const [view, setView] = useState<"MY" | "FAMILY">("FAMILY");
+  const [selectedTx, setSelectedTx] = useState<any>(null);
+
+  const handleDelete = () => {
+    if (!selectedTx || selectedTx.userId !== currentUserId) return;
+    if (!confirm("確定要刪除這筆紀錄嗎？")) return;
+    
+    startTransition(async () => {
+      try {
+        await deleteTransaction(selectedTx.id);
+        setSelectedTx(null);
+        router.refresh(); // 強制重整重新載入資料
+      } catch (e: any) {
+        alert(e.message || "刪除失敗");
+      }
+    });
+  };
 
   // 過濾資料 (依據月份與視角)
   const filteredTx = useMemo(() => {
@@ -248,7 +269,8 @@ export default function DashboardClient({ transactions, currentUserId, userName,
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 + i * 0.06 }}
-                  className="glass-card px-4 py-3 flex items-center gap-3"
+                  onClick={() => setSelectedTx(tx)}
+                  className="glass-card px-4 py-3 flex items-center gap-3 active:scale-95 transition-transform cursor-pointer"
                 >
                   {/* 分類 Icon + 成員頭像 */}
                   <div className="relative flex-shrink-0">
@@ -279,6 +301,53 @@ export default function DashboardClient({ transactions, currentUserId, userName,
           </div>
         )}
       </div>
+
+      {/* ── 交易操作彈出視窗 ── */}
+      <AnimatePresence>
+        {selectedTx && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setSelectedTx(null)}
+              className="fixed inset-0 z-50"
+              style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(2px)" }} />
+            
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              className="fixed bottom-0 left-0 right-0 z-50 bg-[var(--bg-surface)] rounded-t-3xl border-t border-[var(--border)] pb-8 pt-4 px-6">
+              
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <p className="text-sm font-bold text-[var(--text-primary)]">
+                    {selectedTx.category?.name} <span className="text-[var(--text-muted)] font-normal text-xs ml-2">{new Date(selectedTx.date).toLocaleDateString()}</span>
+                  </p>
+                  <AnimatedAmount value={selectedTx.amount} isIncome={selectedTx.type === "INCOME"} />
+                </div>
+                <button onClick={() => setSelectedTx(null)} className="p-2 bg-[var(--bg-card)] rounded-full">
+                  <X size={20} className="text-[var(--text-secondary)]" />
+                </button>
+              </div>
+
+              {selectedTx.userId === currentUserId ? (
+                <div className="flex gap-3">
+                  <button onClick={() => alert("編輯功能即將推出，敬請期待！")}
+                    className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-bold bg-[var(--bg-card)] text-[var(--text-primary)] border border-[var(--border)]">
+                    <Edit2 size={16} /> 編輯
+                  </button>
+                  <button onClick={handleDelete} disabled={isPending}
+                    className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20 disabled:opacity-50">
+                    <Trash2 size={16} /> {isPending ? "刪除中..." : "刪除"}
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center py-4 bg-[var(--bg-card)] rounded-xl border border-[var(--border)]">
+                  <p className="text-sm text-[var(--text-secondary)] mb-1">這是 {selectedTx.user?.name || "其他成員"} 的紀錄</p>
+                  <p className="text-xs text-[var(--text-muted)]">只有建立者可以編輯或刪除</p>
+                </div>
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }

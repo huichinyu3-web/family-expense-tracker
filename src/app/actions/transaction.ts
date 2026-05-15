@@ -178,3 +178,23 @@ export async function getDashboardSummary(month?: number, year?: number) {
 
   return { totalIncome, totalExpense, recentTx };
 }
+
+// ── 刪除交易紀錄（僅限本人） ──────────────────────────────────────────
+export async function deleteTransaction(transactionId: string) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  const tx = await db.query.transactions.findFirst({
+    where: eq(transactions.id, transactionId),
+  });
+
+  if (!tx) throw new Error("Transaction not found");
+  if (tx.userId !== session.user.id) throw new Error("您只能刪除自己建立的紀錄");
+
+  // 如果是分期付款的母筆或子筆，這裡為了簡單，先刪除該單筆（若是母筆也可以連鎖刪除，但我們暫時依據 ID 單筆刪除）
+  await db.delete(transactions).where(eq(transactions.id, transactionId));
+
+  revalidatePath("/dashboard");
+  revalidatePath("/transactions");
+  return { success: true };
+}
