@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useCallback, useMemo, useTransition } from "react";
-import { X, Check, ChevronLeft, Plus } from "lucide-react";
+import { X, Check, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { getAccessibleWallets } from "@/app/actions/wallet";
 import { getCategories, createChildCategory } from "@/app/actions/category";
 import { getMerchants } from "@/app/actions/merchant";
@@ -31,7 +31,6 @@ const WALLET_ICONS: Record<string, string> = { CASH: "💵", BANK: "🏦", CREDI
 // ── 計算機邏輯 ──────────────────────────────────────────────────────────
 function evalExpr(expr: string): number {
   try {
-    // 移除尾部多餘的運算符再計算
     let clean = expr.replace(/[+\-×÷]+$/, "");
     clean = clean.replace(/×/g, "*").replace(/÷/g, "/");
     // eslint-disable-next-line no-new-func
@@ -41,16 +40,17 @@ function evalExpr(expr: string): number {
 }
 
 // ── Components ────────────────────────────────────────────────────────
-function ListRow({ icon, label, value, onClick, active }: any) {
+function ListRow({ icon, label, value, onClick, active, valueColor }: any) {
   return (
-    <button onClick={onClick} className="w-full flex items-center justify-between py-3.5 px-4 mb-1 transition-all rounded-xl"
-      style={{ background: active ? "rgba(99,102,241,0.1)" : "transparent" }}>
+    <button onClick={onClick} className="w-full flex items-center justify-between py-4 px-5 border-b border-[var(--border)] transition-colors"
+      style={{ background: active ? "rgba(99,102,241,0.05)" : "transparent" }}>
       <div className="flex items-center gap-3">
         <span className="text-xl">{icon}</span>
-        <span className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>{label}</span>
+        <span className="text-base font-medium" style={{ color: "var(--text-primary)" }}>{label}</span>
       </div>
       <div className="flex items-center gap-2 max-w-[65%]">
-        <span className="text-sm font-medium truncate" style={{ color: active ? "#6366f1" : "var(--text-secondary)" }}>{value}</span>
+        <span className="text-base font-bold truncate" style={{ color: valueColor || "var(--text-secondary)" }}>{value}</span>
+        <ChevronRight size={16} style={{ color: "var(--text-muted)" }} />
       </div>
     </button>
   );
@@ -76,7 +76,6 @@ export default function QuickAddDrawer({ open, onClose }: { open: boolean; onClo
 
   // ── UI 狀態 ─────────────────────────────────────────────────────────
   const [activePanel, setActivePanel] = useState<Panel>("numpad");
-  const [catTab, setCatTab] = useState<"EXPENSE" | "INCOME">("EXPENSE");   
   const [drillParentId, setDrillParentId] = useState<string | null>(null); 
   const [addingChildFor, setAddingChildFor] = useState<string | null>(null); 
   const [newChildName, setNewChildName] = useState("");
@@ -87,7 +86,8 @@ export default function QuickAddDrawer({ open, onClose }: { open: boolean; onClo
   const [allCategories, setAllCategories] = useState<CategoryParent[]>([]);
   const [merchants, setMerchants] = useState<MerchantItem[]>([]);
 
-  const categories = useMemo(() => allCategories.filter(c => c.type === catTab), [allCategories, catTab]);
+  // 分類連動：根據頂部的 type 開關即時篩選
+  const categories = useMemo(() => allCategories.filter(c => c.type === type), [allCategories, type]);
 
   // 初始化
   useEffect(() => {
@@ -106,7 +106,7 @@ export default function QuickAddDrawer({ open, onClose }: { open: boolean; onClo
     onClose();
     setTimeout(() => {
       setExpr("0"); setSelectedParent(null); setSelectedChild(null);
-      setNote(""); setSubmitted(false); setType("EXPENSE"); setCatTab("EXPENSE");
+      setNote(""); setSubmitted(false); setType("EXPENSE");
       setActivePanel("numpad"); setDrillParentId(null); setAddingChildFor(null);
       setMerchantInput(""); setNewChildName(""); setNewChildIcon("📦");
       setRecurringType("NONE");
@@ -123,16 +123,13 @@ export default function QuickAddDrawer({ open, onClose }: { open: boolean; onClo
     // 如果是 OK/Submit 鍵
     if (key === "OK") {
       if (hasOp) {
-        // 純計算
         setExpr(String(evalExpr(expr)));
       } else {
-        // 送出記帳
         handleSubmit();
       }
       return;
     }
 
-    // 運算符
     if (["+", "-", "×", "÷"].includes(key)) {
       setExpr(prev => {
         const last = prev.slice(-1);
@@ -142,19 +139,17 @@ export default function QuickAddDrawer({ open, onClose }: { open: boolean; onClo
       return;
     }
 
-    // 小數點
     if (key === ".") { 
       const parts = expr.split(/[+\-×÷]/); 
       if (!parts[parts.length - 1].includes(".")) setExpr(prev => prev + "."); 
       return; 
     }
 
-    // 數字
     setExpr(prev => prev === "0" ? key : prev + key);
   };
 
   const finalAmount = evalExpr(expr);
-  const canSubmit = selectedChild !== null && finalAmount > 0 && !hasOp; // 必須沒有運算符才能送出
+  const canSubmit = selectedChild !== null && finalAmount > 0 && !hasOp; 
 
   const handleSubmit = async () => {
     if (!canSubmit || submitted) return;
@@ -194,7 +189,6 @@ export default function QuickAddDrawer({ open, onClose }: { open: boolean; onClo
         if (newChild) { 
           setSelectedParent(parentId); 
           setSelectedChild(newChild.id); 
-          setType(catTab); 
           setActivePanel("numpad"); 
         }
         setAddingChildFor(null); setNewChildName(""); setNewChildIcon("📦");
@@ -211,7 +205,9 @@ export default function QuickAddDrawer({ open, onClose }: { open: boolean; onClo
   const displayDate = selectedDate === todayStr ? "今天" : selectedDate.replace(/-/g, "/");
   const selectedCatParent = allCategories.find(c => c.id === selectedParent);
   const selectedCatChild = selectedCatParent?.children.find(c => c.id === selectedChild);
-  const categoryName = selectedCatChild ? `${selectedCatParent?.icon} ${selectedCatParent?.name} > ${selectedCatChild.name}` : "尚未選擇";
+  // 只在子分類的 type 與目前頂部的 type 相同時，才顯示該分類
+  const isCategoryValid = selectedCatParent?.type === type;
+  const categoryName = (selectedCatChild && isCategoryValid) ? `${selectedCatParent?.icon} ${selectedCatParent?.name} > ${selectedCatChild.name}` : "請選擇";
   const selectedWallet = wallets.find(w => w.id === selectedWalletId);
 
   const CALC_KEYS = [
@@ -232,18 +228,29 @@ export default function QuickAddDrawer({ open, onClose }: { open: boolean; onClo
           <motion.div
             initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 28, stiffness: 280 }}
-            className="fixed bottom-0 left-0 right-0 z-[70] mx-auto w-full max-w-lg flex flex-col rounded-t-[2rem] shadow-2xl"
+            className="fixed bottom-0 left-0 right-0 z-[70] mx-auto w-full max-w-lg flex flex-col rounded-t-3xl shadow-2xl"
             style={{ height: "92vh", background: "var(--bg-surface)", borderTop: "1px solid var(--border)" }}
           >
-            {/* 拖拉條 */}
-            <div className="flex justify-center pt-3 pb-1" onClick={handleClose}>
-              <div className="w-12 h-1.5 rounded-full" style={{ background: "var(--border)" }} />
+            {/* ── 頂部導覽列：返回 / 收支切換 ── */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border)] bg-[var(--bg-card)] rounded-t-3xl">
+              <button onClick={handleClose} className="text-base font-semibold text-[var(--text-secondary)]">取消</button>
+              <div className="flex bg-[var(--bg-surface)] rounded-xl p-1 border border-[var(--border)]">
+                <button onClick={() => { setType("EXPENSE"); setDrillParentId(null); if(selectedCatParent?.type !== "EXPENSE") setSelectedChild(null); }} 
+                  className={`px-5 py-1.5 rounded-lg text-sm font-bold transition-all ${type === "EXPENSE" ? "bg-[rgba(244,63,94,0.15)] text-[#f43f5e]" : "text-[var(--text-muted)]"}`}>
+                  支出
+                </button>
+                <button onClick={() => { setType("INCOME"); setDrillParentId(null); if(selectedCatParent?.type !== "INCOME") setSelectedChild(null); }} 
+                  className={`px-5 py-1.5 rounded-lg text-sm font-bold transition-all ${type === "INCOME" ? "bg-[rgba(16,185,129,0.15)] text-[#10b981]" : "text-[var(--text-muted)]"}`}>
+                  收入
+                </button>
+              </div>
+              <div className="w-8" /> {/* 為了讓中間置中的墊片 */}
             </div>
 
-            {/* ── 頂部：算式 or 金額顯示 ── */}
+            {/* ── 金額顯示 ── */}
             <div className="px-5 py-4 border-b text-right flex flex-col items-end justify-center min-h-[90px]" style={{ borderColor: "var(--border)" }}>
               <motion.div key={expr} initial={{ scale: 1.02 }} animate={{ scale: 1 }} className="flex items-baseline justify-end gap-1 w-full overflow-hidden">
-                <span className="text-sm font-medium flex-shrink-0" style={{ color: "var(--text-muted)" }}>NT$</span>
+                <span className="text-base font-medium flex-shrink-0" style={{ color: "var(--text-muted)" }}>NT$</span>
                 <span className="font-bold tabular-nums tracking-tight truncate"
                   style={{ fontSize: expr.length > 8 ? "2.5rem" : "3.5rem", color: accentColor }}>
                   {expr}
@@ -252,13 +259,13 @@ export default function QuickAddDrawer({ open, onClose }: { open: boolean; onClo
             </div>
 
             {/* ── 中間：直列欄位清單 (可滑動) ── */}
-            <div className="flex-1 overflow-y-auto px-2 py-2 custom-scrollbar">
-              <ListRow icon="📅" label="日期" value={displayDate} onClick={() => togglePanel("date")} active={activePanel==="date"} />
-              <ListRow icon="🏷️" label="分類" value={categoryName} onClick={() => togglePanel("category")} active={activePanel==="category"} />
-              <ListRow icon="💳" label="帳戶" value={selectedWallet ? `${selectedWallet.name}${selectedWallet.visibility === "FAMILY" ? " 👥" : ""}` : "尚未選擇"} onClick={() => togglePanel("wallet")} active={activePanel==="wallet"} />
-              <ListRow icon="🏪" label="商家" value={merchantInput || "尚未輸入"} onClick={() => togglePanel("merchant")} active={activePanel==="merchant"} />
-              <ListRow icon="🔄" label="週期" value={RECURRING_OPTIONS.find(r=>r.value===recurringType)?.label ?? "單次"} onClick={() => togglePanel("recurring")} active={activePanel==="recurring"} />
-              <ListRow icon="📝" label="備註" value={note || "點擊輸入"} onClick={() => togglePanel("note")} active={activePanel==="note"} />
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
+              <ListRow icon="📅" label="日期" value={displayDate} onClick={() => togglePanel("date")} active={activePanel==="date"} valueColor="#6366f1" />
+              <ListRow icon="🏷️" label="分類" value={categoryName} onClick={() => togglePanel("category")} active={activePanel==="category"} valueColor={isCategoryValid ? accentColor : "var(--text-muted)"} />
+              <ListRow icon="💳" label="帳戶" value={selectedWallet ? `${selectedWallet.name}${selectedWallet.visibility === "FAMILY" ? " 👥" : ""}` : "請選擇"} onClick={() => togglePanel("wallet")} active={activePanel==="wallet"} valueColor={selectedWallet ? "var(--text-primary)" : "var(--text-muted)"} />
+              <ListRow icon="🏪" label="商家" value={merchantInput || "未輸入"} onClick={() => togglePanel("merchant")} active={activePanel==="merchant"} valueColor={merchantInput ? "var(--text-primary)" : "var(--text-muted)"} />
+              <ListRow icon="🔄" label="週期" value={RECURRING_OPTIONS.find(r=>r.value===recurringType)?.label ?? "單次"} onClick={() => togglePanel("recurring")} active={activePanel==="recurring"} valueColor={recurringType !== "NONE" ? "var(--text-primary)" : "var(--text-muted)"} />
+              <ListRow icon="📝" label="備註" value={note || "點擊輸入"} onClick={() => togglePanel("note")} active={activePanel==="note"} valueColor={note ? "var(--text-primary)" : "var(--text-muted)"} />
             </div>
 
             {/* ── 底部：固定高度面板區 (取代鍵盤) ── */}
@@ -266,18 +273,18 @@ export default function QuickAddDrawer({ open, onClose }: { open: boolean; onClo
               
               {/* 非數字鍵盤面板時，頂部顯示返回按鈕與標題 */}
               {activePanel !== "numpad" && (
-                <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--border)] bg-[var(--bg-surface)]">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] bg-[var(--bg-surface)]">
                   <span className="text-sm font-bold text-[var(--text-secondary)]">
                     {activePanel === "category" ? "選擇分類" : activePanel === "wallet" ? "選擇帳戶" : activePanel === "date" ? "選擇日期" : activePanel === "merchant" ? "輸入商家" : activePanel === "recurring" ? "設定週期" : "填寫備註"}
                   </span>
                   <button onClick={() => setActivePanel("numpad")} className="p-1 rounded-full bg-[var(--bg-card)]">
-                    <X size={18} style={{ color: "var(--text-muted)" }} />
+                    <X size={20} style={{ color: "var(--text-muted)" }} />
                   </button>
                 </div>
               )}
 
               {/* === 各式面板內容 === */}
-              <div className="flex-1 overflow-y-auto relative">
+              <div className="flex-1 overflow-y-auto relative custom-scrollbar">
                 
                 {/* 1. 數字鍵盤 (預設) */}
                 {activePanel === "numpad" && (
@@ -320,55 +327,47 @@ export default function QuickAddDrawer({ open, onClose }: { open: boolean; onClo
                 {/* 2. 分類面板 */}
                 {activePanel === "category" && (
                   <div className="p-3">
-                    <div className="flex gap-1 mb-3">
-                      {(["EXPENSE", "INCOME"] as const).map(t => (
-                        <button key={t} onClick={() => { setCatTab(t); setDrillParentId(null); }}
-                          className="flex-1 py-1.5 rounded-xl text-xs font-bold transition-all"
-                          style={{ background: catTab === t ? (t === "EXPENSE" ? "rgba(244,63,94,0.2)" : "rgba(16,185,129,0.2)") : "transparent", color: catTab === t ? (t === "EXPENSE" ? "#f43f5e" : "#10b981") : "var(--text-muted)", border: catTab === t ? "none" : "1px solid transparent" }}>
-                          {t === "EXPENSE" ? "💸 支出" : "💰 收入"}
-                        </button>
-                      ))}
-                    </div>
                     {!drillParentId ? (
                       <div className="grid grid-cols-4 gap-2">
                         {categories.map(cat => (
                           <button key={cat.id} onClick={() => setDrillParentId(cat.id)}
-                            className="flex flex-col items-center gap-1 p-2 rounded-xl transition-all"
-                            style={{ background: selectedParent === cat.id ? `${catTab === "EXPENSE" ? "rgba(244,63,94,0.15)" : "rgba(16,185,129,0.15)"}` : "var(--bg-surface)", border: "1px solid var(--border)" }}>
-                            <span className="text-2xl">{cat.icon}</span>
-                            <span className="text-xs text-center" style={{ color: "var(--text-primary)" }}>{cat.name}</span>
+                            className="flex flex-col items-center gap-2 p-3 rounded-xl transition-all"
+                            style={{ background: selectedParent === cat.id ? `${type === "EXPENSE" ? "rgba(244,63,94,0.15)" : "rgba(16,185,129,0.15)"}` : "var(--bg-surface)", border: "1px solid var(--border)" }}>
+                            <span className="text-3xl">{cat.icon}</span>
+                            <span className="text-sm font-medium text-center" style={{ color: "var(--text-primary)" }}>{cat.name}</span>
                           </button>
                         ))}
                       </div>
                     ) : (
                       <div>
-                        <button onClick={() => setDrillParentId(null)} className="flex items-center gap-1 mb-3 text-sm font-semibold text-indigo-400">
-                          <ChevronLeft size={16} /> 回大項
+                        <button onClick={() => setDrillParentId(null)} className="flex items-center gap-1 mb-4 text-base font-semibold text-indigo-400">
+                          <ChevronLeft size={18} /> 回大項
                         </button>
                         <div className="flex flex-wrap gap-2">
                           {categories.find(c => c.id === drillParentId)?.children.map(child => (
                             <button key={child.id} onClick={() => {
-                              setSelectedParent(drillParentId!); setSelectedChild(child.id); setType(catTab); setActivePanel("numpad");
-                            }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium"
-                              style={{ background: selectedChild === child.id ? (catTab === "EXPENSE" ? "#f43f5e" : "#10b981") : "var(--bg-surface)", color: selectedChild === child.id ? "#fff" : "var(--text-primary)", border: selectedChild === child.id ? "none" : "1px solid var(--border)" }}>
+                              setSelectedParent(drillParentId!); setSelectedChild(child.id); setActivePanel("numpad");
+                            }} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-base font-bold"
+                              style={{ background: selectedChild === child.id ? accentColor : "var(--bg-surface)", color: selectedChild === child.id ? "#fff" : "var(--text-primary)", border: selectedChild === child.id ? "none" : "1px solid var(--border)" }}>
                               {child.icon} {child.name}
                             </button>
                           ))}
                           {addingChildFor !== drillParentId ? (
                             <button onClick={() => { setAddingChildFor(drillParentId); setNewChildName(""); setNewChildIcon("📦"); }}
-                              className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-medium transition-all"
+                              className="flex items-center gap-1 px-4 py-2.5 rounded-xl text-base font-bold transition-all"
                               style={{ border: "1.5px dashed var(--border)", color: "var(--text-muted)" }}>
-                              <Plus size={14} /> 新增
+                              <Plus size={16} /> 新增
                             </button>
                           ) : (
                             <div className="w-full mt-2 flex gap-2">
                               <input value={newChildIcon} onChange={e => setNewChildIcon(e.target.value)} maxLength={2}
-                                className="w-12 h-10 text-center rounded-xl text-lg outline-none flex-shrink-0"
+                                className="w-14 h-12 text-center rounded-xl text-xl outline-none flex-shrink-0"
                                 style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }} />
+                              {/* 注意：這裡使用 text-base (16px) 避免 iOS 縮放 */}
                               <input value={newChildName} onChange={e => setNewChildName(e.target.value)} placeholder="輸入名稱..."
-                                autoFocus className="flex-1 h-10 px-3 rounded-xl text-sm outline-none bg-transparent border border-[var(--border)]" />
+                                autoFocus className="flex-1 h-12 px-3 rounded-xl text-base outline-none bg-transparent border border-[var(--border)]" />
                               <button onClick={() => handleAddChild(drillParentId!)} disabled={isPending || !newChildName.trim()}
-                                className="px-4 h-10 rounded-xl text-sm font-bold bg-indigo-500 text-white disabled:opacity-50">
+                                className="px-5 h-12 rounded-xl text-base font-bold bg-indigo-500 text-white disabled:opacity-50">
                                 {isPending ? "..." : "確定"}
                               </button>
                             </div>
@@ -381,20 +380,20 @@ export default function QuickAddDrawer({ open, onClose }: { open: boolean; onClo
 
                 {/* 3. 帳戶面板 */}
                 {activePanel === "wallet" && (
-                  <div className="p-3 flex flex-col gap-2">
+                  <div className="flex flex-col">
                     {[...wallets].sort((a, b) => (a.visibility === "FAMILY" ? -1 : 1)).map(w => (
                       <button key={w.id} onClick={() => { setSelectedWalletId(w.id); setActivePanel("numpad"); }}
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-left"
-                        style={{ background: selectedWalletId === w.id ? "rgba(99,102,241,0.15)" : "var(--bg-surface)", border: selectedWalletId === w.id ? "1.5px solid rgba(99,102,241,0.4)" : "1px solid var(--border)", color: "var(--text-primary)" }}>
-                        <span className="text-xl">{WALLET_ICONS[w.type] ?? "💰"}</span>
+                        className="flex items-center gap-4 px-5 py-4 border-b border-[var(--border)] text-left"
+                        style={{ background: selectedWalletId === w.id ? "rgba(99,102,241,0.15)" : "transparent", color: "var(--text-primary)" }}>
+                        <span className="text-2xl">{WALLET_ICONS[w.type] ?? "💰"}</span>
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="font-bold">{w.name}</span>
-                            {w.visibility === "FAMILY" && <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-indigo-500/20 text-indigo-400">👥 共同</span>}
+                            <span className="font-bold text-base">{w.name}</span>
+                            {w.visibility === "FAMILY" && <span className="text-xs px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-400 font-semibold">👥 共同</span>}
                           </div>
-                          <span className="text-xs text-[var(--text-muted)]">餘額 NT$ {w.balance?.toLocaleString() || 0}</span>
+                          <span className="text-sm text-[var(--text-muted)]">餘額 NT$ {w.balance?.toLocaleString() || 0}</span>
                         </div>
-                        {selectedWalletId === w.id && <Check size={18} className="text-indigo-500" />}
+                        {selectedWalletId === w.id && <Check size={20} className="text-indigo-500" />}
                       </button>
                     ))}
                   </div>
@@ -402,20 +401,21 @@ export default function QuickAddDrawer({ open, onClose }: { open: boolean; onClo
 
                 {/* 4. 日期面板 */}
                 {activePanel === "date" && (
-                  <div className="p-4">
-                    <div className="flex gap-2 mb-4">
+                  <div className="p-5">
+                    <div className="flex gap-2 mb-5">
                       {["今天", "昨天", "前天"].map((label, i) => {
                         const d = new Date(); d.setDate(d.getDate() - i);
                         const dStr = d.toISOString().split("T")[0];
                         return (
                           <button key={label} onClick={() => { setSelectedDate(dStr); setActivePanel("numpad"); }}
-                            className="flex-1 py-2.5 rounded-xl text-sm font-bold"
+                            className="flex-1 py-3 rounded-xl text-base font-bold"
                             style={{ background: selectedDate === dStr ? "rgba(99,102,241,0.2)" : "var(--bg-surface)", color: selectedDate === dStr ? "#6366f1" : "var(--text-muted)", border: "1px solid var(--border)" }}>
                             {label}
                           </button>
                         );
                       })}
                     </div>
+                    {/* 使用 text-base 避免 iOS 縮放 */}
                     <input type="date" value={selectedDate} onChange={e => { setSelectedDate(e.target.value); setActivePanel("numpad"); }}
                       className="w-full px-4 py-3 rounded-xl text-base outline-none bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)]" />
                   </div>
@@ -423,16 +423,16 @@ export default function QuickAddDrawer({ open, onClose }: { open: boolean; onClo
 
                 {/* 5. 商家面板 */}
                 {activePanel === "merchant" && (
-                  <div className="p-4 flex flex-col h-full">
+                  <div className="p-5 flex flex-col h-full">
                     <div className="flex gap-2">
                       <input type="text" value={merchantInput} onChange={e => setMerchantInput(e.target.value)} placeholder="輸入商家名稱..." autoFocus
-                        className="flex-1 px-4 py-3 rounded-xl text-sm outline-none bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)]" />
-                      <button onClick={() => setActivePanel("numpad")} className="px-5 rounded-xl text-sm font-bold bg-indigo-500 text-white">確定</button>
+                        className="flex-1 px-4 py-3 rounded-xl text-base outline-none bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)]" />
+                      <button onClick={() => setActivePanel("numpad")} className="px-6 rounded-xl text-base font-bold bg-indigo-500 text-white">確定</button>
                     </div>
-                    <div className="flex flex-wrap gap-2 mt-4 overflow-y-auto">
+                    <div className="flex flex-wrap gap-2 mt-5 overflow-y-auto">
                       {merchants.filter(m => m.name.includes(merchantInput)).slice(0, 10).map(m => (
                         <button key={m.id} onClick={() => { setMerchantInput(m.name); setActivePanel("numpad"); }}
-                          className="px-4 py-2 rounded-xl text-sm bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-white">
+                          className="px-4 py-2 rounded-xl text-sm font-medium bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-white">
                           {m.name}
                         </button>
                       ))}
@@ -442,25 +442,25 @@ export default function QuickAddDrawer({ open, onClose }: { open: boolean; onClo
 
                 {/* 6. 週期面板 */}
                 {activePanel === "recurring" && (
-                  <div className="p-4">
+                  <div className="p-5">
                     <div className="flex flex-wrap gap-2">
                       {RECURRING_OPTIONS.map(opt => (
                         <button key={opt.value} onClick={() => { setRecurringType(opt.value); if(opt.value!=="INSTALLMENT") setActivePanel("numpad"); }}
-                          className="px-4 py-2 rounded-xl text-sm font-semibold"
+                          className="px-4 py-2.5 rounded-xl text-sm font-bold"
                           style={{ background: recurringType === opt.value ? "rgba(99,102,241,0.2)" : "var(--bg-surface)", color: recurringType === opt.value ? "#6366f1" : "var(--text-secondary)", border: "1px solid var(--border)" }}>
                           {opt.label}
                         </button>
                       ))}
                     </div>
                     {recurringType === "INSTALLMENT" && (
-                      <div className="mt-6 flex items-center justify-between p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
-                        <span className="text-sm font-bold text-[var(--text-primary)]">分期總期數</span>
+                      <div className="mt-6 flex items-center justify-between p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+                        <span className="text-base font-bold text-[var(--text-primary)]">分期總期數</span>
                         <div className="flex items-center gap-3">
-                          <button onClick={() => setInstallments(n => Math.max(2,n-1))} className="w-10 h-10 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] text-xl font-bold">-</button>
-                          <span className="text-xl font-bold w-8 text-center">{installments}</span>
-                          <button onClick={() => setInstallments(n => Math.min(36,n+1))} className="w-10 h-10 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] text-xl font-bold">+</button>
+                          <button onClick={() => setInstallments(n => Math.max(2,n-1))} className="w-12 h-12 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] text-2xl font-bold">-</button>
+                          <span className="text-2xl font-bold w-10 text-center">{installments}</span>
+                          <button onClick={() => setInstallments(n => Math.min(36,n+1))} className="w-12 h-12 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] text-2xl font-bold">+</button>
                         </div>
-                        <button onClick={() => setActivePanel("numpad")} className="px-4 py-2 rounded-xl text-sm font-bold bg-indigo-500 text-white">設定</button>
+                        <button onClick={() => setActivePanel("numpad")} className="px-5 py-3 rounded-xl text-base font-bold bg-indigo-500 text-white">設定</button>
                       </div>
                     )}
                   </div>
@@ -468,10 +468,10 @@ export default function QuickAddDrawer({ open, onClose }: { open: boolean; onClo
 
                 {/* 7. 備註面板 */}
                 {activePanel === "note" && (
-                  <div className="p-4 flex gap-2">
+                  <div className="p-5 flex gap-2">
                     <input type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="加個備註..." autoFocus
-                      className="flex-1 px-4 py-3 rounded-xl text-sm outline-none bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)]" />
-                    <button onClick={() => setActivePanel("numpad")} className="px-5 rounded-xl text-sm font-bold bg-indigo-500 text-white">確定</button>
+                      className="flex-1 px-4 py-3 rounded-xl text-base outline-none bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)]" />
+                    <button onClick={() => setActivePanel("numpad")} className="px-6 rounded-xl text-base font-bold bg-indigo-500 text-white">確定</button>
                   </div>
                 )}
                 

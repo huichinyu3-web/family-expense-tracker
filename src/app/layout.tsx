@@ -13,6 +13,13 @@ export const metadata: Metadata = {
   description: "免費、無廣告、具備生物辨識的精品家庭共用記帳系統",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
