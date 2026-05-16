@@ -348,7 +348,7 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
                       style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
                       {tx.category?.icon || "📦"}
                     </div>
-                    <div className="absolute -bottom-1 -right-1 ring-2 ring-[var(--bg-surface)] rounded-full">
+                    <div className="absolute -bottom-1 -right-1 ring-2 ring-[var(--bg-card)] rounded-full">
                       <Avatar initial={(tx.user?.name || "U")[0].toUpperCase()} colorId={tx.user?.id || "1"} />
                     </div>
                   </div>

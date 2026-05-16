@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
 import QuickAddDrawer from "@/components/features/QuickAddDrawer";
 
-const CHART_COLORS = ["#6366f1", "#1c1c27"];
+const CHART_COLORS = ["#6366f1", "#f1f5f9"];
 const MONTHS = ["一月","二月","三月","四月","五月","六月","七月","八月","九月","十月","十一月","十二月"];
 const TYPES    = ["全部", "支出", "收入"];
 
@@ -553,7 +553,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
                       style={{ background: "var(--bg-card)" }}>
                       {tx.category?.icon || "📦"}
                     </div>
-                    <div className="absolute -bottom-1 -right-1 ring-2 ring-[#0a0a0f] rounded-full">
+                    <div className="absolute -bottom-1 -right-1 ring-2 ring-[var(--bg-card)] rounded-full">
                       <Avatar initial={(tx.user?.name || "U")[0].toUpperCase()} colorId={tx.user?.id || "1"} />
                     </div>
                   </div>
