@@ -43,6 +43,66 @@ function evalExpr(expr: string): number {
   } catch { return 0; }
 }
 
+// ── 日曆組件 ───────────────────────────────────────────────────────────
+function CustomCalendar({ selectedDate, onSelect }: { selectedDate: string; onSelect: (date: string) => void }) {
+  const [viewDate, setViewDate] = useState(new Date(selectedDate));
+  
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayOfWeek = new Date(year, month, 1).getDay();
+  const prevMonthDays = new Date(year, month, 0).getDate();
+  
+  const grid = [];
+  for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+    grid.push({ date: new Date(year, month - 1, prevMonthDays - i), isCurrentMonth: false });
+  }
+  for (let i = 1; i <= daysInMonth; i++) {
+    grid.push({ date: new Date(year, month, i), isCurrentMonth: true });
+  }
+  const remaining = 42 - grid.length;
+  for (let i = 1; i <= remaining; i++) {
+    grid.push({ date: new Date(year, month + 1, i), isCurrentMonth: false });
+  }
+
+  const handlePrevMonth = () => setViewDate(new Date(year, month - 1, 1));
+  const handleNextMonth = () => setViewDate(new Date(year, month + 1, 1));
+
+  const formatStr = (d: Date) => `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+  const todayStr = formatStr(new Date());
+
+  return (
+    <div className="w-full">
+      <div className="flex items-center justify-between mb-4 px-2">
+        <button onClick={handlePrevMonth} className="p-2 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-card)] border border-[var(--border)]"><ChevronLeft size={18} /></button>
+        <span className="font-bold text-lg" style={{ color: "var(--text-primary)" }}>{year} 年 {month + 1} 月</span>
+        <button onClick={handleNextMonth} className="p-2 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-card)] border border-[var(--border)]"><ChevronRight size={18} /></button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center mb-2">
+        {["日","一","二","三","四","五","六"].map(d => <span key={d} className="text-xs text-[var(--text-muted)] font-medium">{d}</span>)}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {grid.map((item, idx) => {
+          const dStr = formatStr(item.date);
+          const isSelected = dStr === selectedDate;
+          const isToday = dStr === todayStr;
+          return (
+            <button key={idx} onClick={() => onSelect(dStr)}
+              className={`aspect-square flex items-center justify-center rounded-xl text-sm font-bold transition-all ${
+                isSelected ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/30 scale-105" : 
+                isToday ? "bg-indigo-500/20 text-indigo-500" : 
+                item.isCurrentMonth ? "text-[var(--text-primary)] hover:bg-[var(--bg-surface)]" : "text-[var(--text-muted)] opacity-30"
+              }`}>
+              {item.date.getDate()}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Components ────────────────────────────────────────────────────────
 function ListRow({ icon, label, value, onClick, active, valueColor }: any) {
   return (
@@ -503,9 +563,7 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
                         );
                       })}
                     </div>
-                    {/* 使用 text-base 避免 iOS 縮放 */}
-                    <input type="date" value={selectedDate} onChange={e => { setSelectedDate(e.target.value); setActivePanel("numpad"); }}
-                      className="w-full px-4 py-3 rounded-xl text-base outline-none bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)]" />
+                    <CustomCalendar selectedDate={selectedDate} onSelect={(d) => { setSelectedDate(d); setActivePanel("numpad"); }} />
                   </div>
                 )}
 

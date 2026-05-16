@@ -11,6 +11,7 @@ import { createWallet, deleteWallet } from "@/app/actions/wallet";
 import { createParentCategory, createChildCategory, toggleCategoryVisibility, deleteCategory } from "@/app/actions/category";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import InviteSheet from "@/components/features/InviteSheet";
 import FamilyMembersPanel from "@/components/features/FamilyMembersPanel";
 
@@ -452,6 +453,21 @@ export default function SettingsClient({
           </div>
           <ChevronRight size={14} style={{ color: "var(--text-muted)" }} />
         </motion.button>
+      </div>
+
+      {/* ── 資料管理 ── */}
+      <div className="mt-4 mb-2">
+        <SectionTitle>📊 資料管理</SectionTitle>
+        <Link href="/settings/merchants" className="w-full glass-card px-4 py-3.5 flex items-center gap-3 text-left">
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-indigo-500/15">
+            <Tag size={16} className="text-indigo-500" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>商家管理</p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>檢視與刪除常用商家清單</p>
+          </div>
+          <ChevronRight size={14} style={{ color: "var(--text-muted)" }} />
+        </Link>
       </div>
 
       {/* ── 帳號 ── */}
