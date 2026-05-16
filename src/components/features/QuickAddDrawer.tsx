@@ -242,7 +242,8 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
   };
 
   const finalAmount = evalExpr(expr);
-  const canSubmit = selectedChild !== null && finalAmount > 0 && !hasOp; 
+  const isInitialAdjustment = editData?.note?.includes("初始") || note?.includes("初始");
+  const canSubmit = selectedChild !== null && (finalAmount > 0 || (finalAmount === 0 && isInitialAdjustment)) && !hasOp; 
 
   const handleSubmit = async () => {
     if (!canSubmit || submitted || isPending) return;
