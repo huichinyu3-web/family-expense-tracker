@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Providers } from "./providers";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const inter = Inter({
@@ -29,6 +30,7 @@ export default function RootLayout({
     <html lang="zh-TW" className={`${inter.variable} h-full`} suppressHydrationWarning>
       <body className="min-h-full bg-[#0a0a0f] text-white antialiased font-sans">
         <Providers>{children}</Providers>
+        <Toaster position="top-center" theme="dark" />
       </body>
     </html>
   );

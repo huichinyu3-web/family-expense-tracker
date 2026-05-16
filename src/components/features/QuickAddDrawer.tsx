@@ -8,6 +8,7 @@ import { getCategories, createChildCategory } from "@/app/actions/category";
 import { getMerchants } from "@/app/actions/merchant";
 import { addTransaction, updateTransaction } from "@/app/actions/transaction";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 // ── Types ─────────────────────────────────────────────────────────────
 type WalletItem = { id: string; name: string; type: string; visibility: string; balance?: number };
@@ -131,7 +132,15 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
 
   // ── 鍵盤處理 ───────────────────────────────────────────────────────
   const hasOp = /[+\-×÷]/.test(expr);
+
+  const triggerHaptic = () => {
+    if (typeof window !== "undefined" && window.navigator && window.navigator.vibrate) {
+      window.navigator.vibrate(40);
+    }
+  };
+
   const handleKey = (key: string) => {
+    triggerHaptic();
     if (key === "AC") { setExpr("0"); return; }
     if (key === "⌫") { setExpr(prev => prev.length > 1 ? prev.slice(0, -1) : "0"); return; }
     
@@ -167,9 +176,11 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
   const canSubmit = selectedChild !== null && finalAmount > 0 && !hasOp; 
 
   const handleSubmit = async () => {
-    if (!canSubmit || submitted) return;
-    setSubmitted(true);
-    try {
+    if (!canSubmit || submitted || isPending) return;
+    
+    startTransition(async () => {
+      setSubmitted(true);
+      try {
       const ts = new Date(selectedDate).getTime() + (new Date().getTime() % 86400000);
       const dataToSave = { 
         type, 
@@ -188,15 +199,20 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
       } else {
         await addTransaction(dataToSave);
       }
-      
-      router.refresh();
-      getAccessibleWallets().then(w => setWallets(w as WalletItem[]));
-      setTimeout(() => handleClose(), 600);
-    } catch (e) {
-      console.error(e);
-      setSubmitted(false);
-      alert("儲存失敗，請重試");
-    }
+        
+        router.refresh();
+        getAccessibleWallets().then(w => setWallets(w as WalletItem[]));
+        toast.success(editData ? "修改成功" : "記帳成功", {
+          style: { background: "#10b981", color: "white", border: "none" }
+        });
+        triggerHaptic();
+        setTimeout(() => handleClose(), 800); // 稍微加長讓打勾動畫顯示久一點
+      } catch (e) {
+        console.error(e);
+        setSubmitted(false);
+        toast.error("儲存失敗，請重試");
+      }
+    });
   };
 
   const handleAddChild = (parentId: string) => {
@@ -337,10 +353,26 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
                         style={{ background: "rgba(244,63,94,0.15)", color: "#f43f5e", border: "1px solid var(--border)" }}>
                         AC
                       </motion.button>
-                      <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleKey("OK")}
+                      <motion.button whileTap={(!isPending && !submitted) ? { scale: 0.95 } : undefined} onClick={() => !isPending && !submitted && handleKey("OK")}
                         className="col-span-3 rounded-xl flex items-center justify-center text-lg font-bold transition-colors"
-                        style={{ background: hasOp ? "rgba(99,102,241,0.2)" : (canSubmit ? accentColor : "var(--bg-surface)"), color: hasOp ? "#6366f1" : (canSubmit ? "#fff" : "var(--text-muted)"), border: "1px solid var(--border)" }}>
-                        {submitted ? <Check size={24} /> : (hasOp ? "= OK" : (canSubmit ? "✓ 儲存" : "請選分類與金額"))}
+                        style={{ 
+                          background: isPending ? "rgba(255,255,255,0.05)" : (submitted ? "#10b981" : (hasOp ? "rgba(99,102,241,0.2)" : (canSubmit ? accentColor : "var(--bg-surface)"))), 
+                          color: isPending ? "var(--text-muted)" : (submitted ? "#fff" : (hasOp ? "#6366f1" : (canSubmit ? "#fff" : "var(--text-muted)"))), 
+                          border: "1px solid var(--border)" 
+                        }}>
+                        {isPending ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-5 h-5 border-2 border-[var(--text-muted)] border-t-transparent rounded-full animate-spin" />
+                            <span className="text-sm font-semibold">處理中...</span>
+                          </div>
+                        ) : submitted ? (
+                          <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex items-center gap-2">
+                            <Check size={24} strokeWidth={3} />
+                            <span className="text-base font-bold">完成</span>
+                          </motion.div>
+                        ) : (
+                          hasOp ? "= OK" : (canSubmit ? "✓ 儲存" : "請選分類與金額")
+                        )}
                       </motion.button>
                     </div>
                   </div>
