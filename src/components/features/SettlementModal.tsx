@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
 import { getWalletSettlement } from "@/app/actions/settlement";
+import { settleDebt } from "@/app/actions/settlement";
 import type { NetBalance, SettlementDebt } from "@/lib/settlement";
 
 // ── 頭像元件 ────────────────────────────────────────────────────────────
@@ -51,43 +52,94 @@ function BalanceRow({ balance }: { balance: NetBalance }) {
 }
 
 // ── 還款路徑卡片 ─────────────────────────────────────────────────────────
-function DebtCard({ debt, index }: { debt: SettlementDebt; index: number }) {
+function DebtCard({
+  debt, index, currentUserId, familyId, walletId, onSettled
+}: {
+  debt: SettlementDebt;
+  index: number;
+  currentUserId: string;
+  familyId: string;
+  walletId: string;
+  onSettled: () => void;
+}) {
+  const [settling, setSettling] = useState(false);
+  const [settled, setSettled] = useState(false);
+  const isMyDebt = debt.fromUserId === currentUserId;
+
+  const handleSettle = async () => {
+    if (!isMyDebt) return;
+    setSettling(true);
+    try {
+      await settleDebt({ walletId, familyId, fromUserId: debt.fromUserId, toUserId: debt.toUserId, amount: debt.amount });
+      setSettled(true);
+      setTimeout(onSettled, 900);
+    } catch (e: any) {
+      alert(e.message || "結清失敗，請稍後再試");
+    } finally {
+      setSettling(false);
+    }
+  };
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
+      animate={{ opacity: settled ? 0.4 : 1, y: 0 }}
       transition={{ delay: index * 0.08 }}
-      className="flex items-center gap-3 p-3 rounded-2xl"
-      style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.12)" }}
+      className="flex flex-col gap-3 p-3 rounded-2xl"
+      style={{ background: settled ? "rgba(16,185,129,0.06)" : "rgba(99,102,241,0.06)", border: `1px solid ${settled ? "rgba(16,185,129,0.2)" : "rgba(99,102,241,0.12)"}` }}
     >
-      {/* 還款方 */}
-      <div className="flex flex-col items-center gap-1 flex-shrink-0">
-        <Avatar name={debt.fromName} colorId={debt.fromColorId} size="md" />
-        <p className="text-[10px] font-medium text-center leading-tight" style={{ color: "var(--text-secondary)" }}>
-          {debt.fromName}
-        </p>
-      </div>
-
-      {/* 箭頭 + 金額 */}
-      <div className="flex-1 flex flex-col items-center gap-1">
-        <span className="text-base font-black tabular-nums" style={{ color: "#6366f1" }}>
-          NT${debt.amount.toLocaleString()}
-        </span>
-        <div className="flex items-center gap-1 w-full">
-          <div className="flex-1 h-px" style={{ background: "rgba(99,102,241,0.3)" }} />
-          <ArrowRight size={14} color="#6366f1" />
-          <div className="w-2 h-px" style={{ background: "rgba(99,102,241,0.3)" }} />
+      <div className="flex items-center gap-3">
+        {/* 還款方 */}
+        <div className="flex flex-col items-center gap-1 flex-shrink-0">
+          <Avatar name={debt.fromName} colorId={debt.fromColorId} size="md" />
+          <p className="text-[10px] font-medium text-center leading-tight" style={{ color: "var(--text-secondary)" }}>
+            {debt.fromName}
+          </p>
         </div>
-        <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>轉帳給</span>
+
+        {/* 箭頭 + 金額 */}
+        <div className="flex-1 flex flex-col items-center gap-1">
+          <span className="text-base font-black tabular-nums" style={{ color: settled ? "#10b981" : "#6366f1" }}>
+            NT${debt.amount.toLocaleString()}
+          </span>
+          <div className="flex items-center gap-1 w-full">
+            <div className="flex-1 h-px" style={{ background: settled ? "rgba(16,185,129,0.3)" : "rgba(99,102,241,0.3)" }} />
+            <ArrowRight size={14} color={settled ? "#10b981" : "#6366f1"} />
+            <div className="w-2 h-px" style={{ background: settled ? "rgba(16,185,129,0.3)" : "rgba(99,102,241,0.3)" }} />
+          </div>
+          <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>轉帳給</span>
+        </div>
+
+        {/* 收款方 */}
+        <div className="flex flex-col items-center gap-1 flex-shrink-0">
+          <Avatar name={debt.toName} colorId={debt.toColorId} size="md" />
+          <p className="text-[10px] font-medium text-center leading-tight" style={{ color: "var(--text-secondary)" }}>
+            {debt.toName}
+          </p>
+        </div>
       </div>
 
-      {/* 收款方 */}
-      <div className="flex flex-col items-center gap-1 flex-shrink-0">
-        <Avatar name={debt.toName} colorId={debt.toColorId} size="md" />
-        <p className="text-[10px] font-medium text-center leading-tight" style={{ color: "var(--text-secondary)" }}>
-          {debt.toName}
+      {/* 已還款按鈕（僅還款者本人可見） */}
+      {isMyDebt && (
+        <button
+          onClick={handleSettle}
+          disabled={settling || settled}
+          className="w-full py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 active:scale-95"
+          style={{
+            background: settled ? "rgba(16,185,129,0.12)" : "rgba(99,102,241,0.1)",
+            color: settled ? "#10b981" : "#6366f1",
+            border: `1px solid ${settled ? "rgba(16,185,129,0.25)" : "rgba(99,102,241,0.25)"}`,
+            opacity: settling ? 0.7 : 1,
+          }}
+        >
+          {settling ? <Loader2 size={12} className="animate-spin" /> : settled ? <CheckCircle2 size={12} /> : null}
+          {settled ? "已完成結清 ✔" : settling ? "處理中..." : "✅ 我已轉帳，確認結清"}
+        </button>
+      )}
+      {!isMyDebt && (
+        <p className="text-center text-[10px]" style={{ color: "var(--text-muted)" }}>
+          等待 {debt.fromName} 確認轉帳
         </p>
-      </div>
+      )}
     </motion.div>
   );
 }
@@ -96,18 +148,19 @@ function DebtCard({ debt, index }: { debt: SettlementDebt; index: number }) {
 interface SettlementModalProps {
   walletId: string;
   walletName: string;
+  familyId: string;
+  currentUserId: string;
   onClose: () => void;
 }
 
-export default function SettlementModal({ walletId, walletName, onClose }: SettlementModalProps) {
+export default function SettlementModal({ walletId, walletName, familyId, currentUserId, onClose }: SettlementModalProps) {
   const [isPending, startTransition] = useTransition();
   const [balances, setBalances] = useState<NetBalance[] | null>(null);
   const [debts, setDebts] = useState<SettlementDebt[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"debts" | "balances">("debts");
 
-  // 一進來就自動載入結算資料
-  useState(() => {
+  const loadSettlement = () => {
     startTransition(async () => {
       try {
         const result = await getWalletSettlement(walletId);
@@ -117,7 +170,10 @@ export default function SettlementModal({ walletId, walletName, onClose }: Settl
         setError(e.message || "載入失敗，請稍後再試");
       }
     });
-  });
+  };
+
+  // 一進來就自動載入結算資料
+  useState(() => { loadSettlement(); });
 
   return (
     <>
@@ -219,7 +275,15 @@ export default function SettlementModal({ walletId, walletName, onClose }: Settl
                     共需 {debts.length} 筆轉帳即可結清（最少次數）
                   </p>
                   {debts.map((debt, i) => (
-                    <DebtCard key={i} debt={debt} index={i} />
+                    <DebtCard
+                      key={i}
+                      debt={debt}
+                      index={i}
+                      currentUserId={currentUserId}
+                      familyId={familyId}
+                      walletId={walletId}
+                      onSettled={loadSettlement}
+                    />
                   ))}
                 </>
               )}

@@ -2,8 +2,10 @@
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { familyMembers, wallets, walletMembers, transactions } from "@/lib/db/schema";
+import { familyMembers, wallets, walletMembers, transactions, categories } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+import crypto from "crypto";
 import { calculateSettlement, Member, Transaction as SettlementTx } from "@/lib/settlement";
 
 /**
@@ -120,4 +122,92 @@ export async function getWalletSettlement(walletId: string) {
 
     return calculateSettlement(settlementTxs, members);
   }
+}
+
+/**
+ * 一鍵結清（Settle Up）
+ * 當 A 確認已經轉帳給 B，呼叫此 Action
+ * 系統會自動在帳簿內建立兩筆隱藏交易來平帳：
+ *   - 一筆 A 的支出（A 支付了這筆錢）
+ *   - 一筆 B 的收入（B 收到了這筆錢）
+ */
+export async function settleDebt(params: {
+  walletId: string;
+  familyId: string;
+  fromUserId: string; // 還款者
+  toUserId: string;   // 收款者
+  amount: number;
+}) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  const { walletId, familyId, fromUserId, toUserId, amount } = params;
+
+  // 找到或建立「內部結清」分類
+  const SETTLE_CAT_NAME = "內部結清";
+
+  let expenseCat = await db.query.categories.findFirst({
+    where: and(
+      eq(categories.familyId, familyId),
+      eq(categories.name, SETTLE_CAT_NAME),
+      eq(categories.type, "EXPENSE")
+    ),
+  });
+  if (!expenseCat) {
+    const id = crypto.randomUUID();
+    await db.insert(categories).values({
+      id, familyId, name: SETTLE_CAT_NAME, type: "EXPENSE",
+      icon: "💸", isDefault: false, isHidden: true,
+    });
+    expenseCat = { id } as any;
+  }
+
+  let incomeCat = await db.query.categories.findFirst({
+    where: and(
+      eq(categories.familyId, familyId),
+      eq(categories.name, SETTLE_CAT_NAME),
+      eq(categories.type, "INCOME")
+    ),
+  });
+  if (!incomeCat) {
+    const id = crypto.randomUUID();
+    await db.insert(categories).values({
+      id, familyId, name: SETTLE_CAT_NAME, type: "INCOME",
+      icon: "💸", isDefault: false, isHidden: true,
+    });
+    incomeCat = { id } as any;
+  }
+
+  const now = Date.now();
+
+  // A 的支出交易
+  await db.insert(transactions).values({
+    id: crypto.randomUUID(),
+    familyId,
+    userId: fromUserId,
+    walletId,
+    categoryId: expenseCat!.id,
+    amount,
+    type: "EXPENSE",
+    date: now,
+    note: `結清轉帳（內部）`,
+    paidByUserId: fromUserId,
+  });
+
+  // B 的收入交易
+  await db.insert(transactions).values({
+    id: crypto.randomUUID(),
+    familyId,
+    userId: toUserId,
+    walletId,
+    categoryId: incomeCat!.id,
+    amount,
+    type: "INCOME",
+    date: now,
+    note: `結清收款（內部）`,
+    paidByUserId: fromUserId,
+  });
+
+  revalidatePath("/dashboard");
+  return { success: true };
 }

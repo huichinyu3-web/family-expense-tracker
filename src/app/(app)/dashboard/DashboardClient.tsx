@@ -650,6 +650,8 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
           <SettlementModal
             walletId={selectedWallet.id}
             walletName={selectedWallet.name}
+            familyId={selectedWallet.familyId}
+            currentUserId={currentUserId}
             onClose={() => setShowSettlement(false)}
           />
         )}
