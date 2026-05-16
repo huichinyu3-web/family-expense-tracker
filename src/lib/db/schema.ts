@@ -166,6 +166,9 @@ export const transactions = sqliteTable(
     installments: integer("installments"), // 總期數
     installmentIndex: integer("installment_index"), // 當前第幾期
     parentId: text("parent_id"), // 指向原始的交易（用來追蹤分期或週期）
+    // -- 帳簿與代墊結算 --
+    currency: text("currency").notNull().default("TWD"),
+    paidByUserId: text("paid_by_user_id").references(() => users.id),
     // ----------------
     createdAt: integer("created_at").default(sql`(cast(strftime('%s', 'now') as integer))`),
   },
@@ -177,7 +180,7 @@ export const transactions = sqliteTable(
   })
 );
 
-// ─── 11. Wallets (帳戶來源) ──────────────────────────────────────────────────
+// ─── 11. Wallets (帳戶/帳簿來源) ──────────────────────────────────────────
 export const wallets = sqliteTable("wallets", {
   id: text("id").primaryKey(),
   familyId: text("family_id").notNull().references(() => families.id, { onDelete: "cascade" }),
@@ -185,6 +188,9 @@ export const wallets = sqliteTable("wallets", {
   type: text("type", { enum: ["CASH", "BANK", "CREDIT_CARD", "E_WALLET", "OTHER"] }).notNull().default("CASH"),
   visibility: text("visibility", { enum: ["PERSONAL", "FAMILY", "CUSTOM"] }).notNull().default("FAMILY"),
   ownerId: text("owner_id").references(() => users.id), // 若為 PERSONAL，記錄誰是擁有者
+  // -- 帳簿擴充 --
+  currency: text("currency").notNull().default("TWD"),
+  isSplitEnabled: integer("is_split_enabled", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at").default(sql`(cast(strftime('%s', 'now') as integer))`),
 });
 

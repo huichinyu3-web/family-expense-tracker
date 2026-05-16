@@ -17,6 +17,7 @@ import FamilyMembersPanel from "@/components/features/FamilyMembersPanel";
 // ── 型別 ──────────────────────────────────────────────────────────────
 type Wallet = {
   id: string; name: string; type: string; visibility: string; ownerId?: string | null; balance?: number;
+  currency: string; isSplitEnabled: boolean;
 };
 type CategoryChild = { id: string; name: string; icon: string | null; isDefault: boolean; isHidden: boolean; };
 type CategoryParent = { id: string; name: string; icon: string | null; type: string; isDefault: boolean; isHidden: boolean; children: CategoryChild[]; };
@@ -51,12 +52,14 @@ function AddWalletSheet({ onClose, onDone }: { onClose: () => void; onDone: () =
   const [type, setType] = useState<"CASH"|"BANK"|"CREDIT_CARD"|"E_WALLET"|"OTHER">("CASH");
   const [visibility, setVisibility] = useState<"PERSONAL"|"FAMILY"|"CUSTOM">("FAMILY");
   const [initialBalance, setInitialBalance] = useState("0");
+  const [currency, setCurrency] = useState("TWD");
+  const [isSplitEnabled, setIsSplitEnabled] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const handleSave = () => {
     if (!name.trim()) return;
     startTransition(async () => {
-      await createWallet({ name: name.trim(), type, visibility, initialBalance: parseFloat(initialBalance) || 0 });
+      await createWallet({ name: name.trim(), type, visibility, initialBalance: parseFloat(initialBalance) || 0, currency, isSplitEnabled });
       onDone();
     });
   };
@@ -71,16 +74,16 @@ function AddWalletSheet({ onClose, onDone }: { onClose: () => void; onDone: () =
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-base font-bold" style={{ color: "var(--text-primary)" }}>新增帳戶</h2>
+          <h2 className="text-base font-bold" style={{ color: "var(--text-primary)" }}>新增帳簿 (Ledger)</h2>
           <button onClick={onClose}><X size={18} style={{ color: "var(--text-muted)" }} /></button>
         </div>
 
         {/* 名稱 */}
-        <label className="block text-xs mb-1" style={{ color: "var(--text-muted)" }}>帳戶名稱</label>
+        <label className="block text-xs mb-1" style={{ color: "var(--text-muted)" }}>帳簿名稱</label>
         <input
           className="w-full px-3 py-2.5 rounded-xl text-sm mb-4 outline-none"
           style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
-          placeholder="例如：中信聯名卡、家庭現金"
+          placeholder="例如：日本旅遊公積金、家庭日常"
           value={name} onChange={e => setName(e.target.value)}
         />
 
@@ -121,17 +124,43 @@ function AddWalletSheet({ onClose, onDone }: { onClose: () => void; onDone: () =
         </div>
 
         {/* 初始金額 */}
-        <label className="block text-xs mb-1" style={{ color: "var(--text-muted)" }}>初始餘額</label>
-        <div className="relative mb-6">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: "var(--text-muted)" }}>NT$</span>
-          <input
-            type="number"
-            className="w-full pl-10 pr-3 py-2.5 rounded-xl text-sm outline-none"
-            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
-            placeholder="0"
-            value={initialBalance} onChange={e => setInitialBalance(e.target.value)}
-          />
+        <div className="flex gap-4 mb-6">
+          <div className="flex-1">
+            <label className="block text-xs mb-1" style={{ color: "var(--text-muted)" }}>幣別</label>
+            <select
+              className="w-full px-3 py-2.5 rounded-xl text-sm outline-none appearance-none"
+              style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+              value={currency} onChange={e => setCurrency(e.target.value)}
+            >
+              <option value="TWD">TWD 台幣</option>
+              <option value="JPY">JPY 日圓</option>
+              <option value="USD">USD 美元</option>
+              <option value="EUR">EUR 歐元</option>
+              <option value="KRW">KRW 韓元</option>
+            </select>
+          </div>
+          <div className="flex-1">
+            <label className="block text-xs mb-1" style={{ color: "var(--text-muted)" }}>初始餘額</label>
+            <input
+              type="number"
+              className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+              style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+              placeholder="0"
+              value={initialBalance} onChange={e => setInitialBalance(e.target.value)}
+            />
+          </div>
         </div>
+
+        {/* 拆帳模式 */}
+        {visibility !== "PERSONAL" && (
+          <label className="flex items-center gap-3 p-3 rounded-xl mb-6 cursor-pointer" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+            <input type="checkbox" checked={isSplitEnabled} onChange={e => setIsSplitEnabled(e.target.checked)} className="w-4 h-4 accent-indigo-500" />
+            <div className="flex-1">
+              <span className="block text-sm font-bold" style={{ color: "var(--text-primary)" }}>啟用拆帳與代墊結算</span>
+              <span className="block text-[10px]" style={{ color: "var(--text-muted)" }}>記錄每筆交易由誰代墊，並自動計算成員間的結算差額。</span>
+            </div>
+          </label>
+        )}
 
         <motion.button
           whileTap={{ scale: 0.97 }} onClick={handleSave} disabled={pending || !name.trim()}
@@ -322,10 +351,10 @@ export default function SettingsClient({
         <ChevronRight size={16} style={{ color: "var(--text-muted)" }} />
       </div>
 
-      {/* ── 帳戶管理 ── */}
-      <SectionTitle>💳 帳戶管理</SectionTitle>
+      {/* ── 帳簿管理 ── */}
+      <SectionTitle>💳 帳簿管理 (Ledgers)</SectionTitle>
       {wallets.length === 0 && (
-        <p className="text-xs px-1 mb-3" style={{ color: "var(--text-muted)" }}>尚無帳戶，請先新增</p>
+        <p className="text-xs px-1 mb-3" style={{ color: "var(--text-muted)" }}>尚無帳簿，請先新增</p>
       )}
       {wallets.map(w => {
         const t = WALLET_TYPE_LABELS[w.type] ?? { label: w.type, icon: "💰" };
@@ -337,7 +366,7 @@ export default function SettingsClient({
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>{w.name}</p>
                 <span className="text-sm font-bold tabular-nums flex-shrink-0 ml-2" style={{ color: w.balance! < 0 ? "#f43f5e" : "var(--text-primary)" }}>
-                  NT$ {w.balance?.toLocaleString() || 0}
+                  {w.currency} {w.balance?.toLocaleString() || 0}
                 </span>
               </div>
               <div className="flex items-center gap-2 mt-0.5">
@@ -345,6 +374,11 @@ export default function SettingsClient({
                 <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: `${v.color}20`, color: v.color }}>
                   {v.label}
                 </span>
+                {w.isSplitEnabled && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(16,185,129,0.15)", color: "#10b981" }}>
+                    📐 拆帳模式
+                  </span>
+                )}
               </div>
             </div>
             <button onClick={() => handleDeleteWallet(w.id, w.name)} className="w-7 h-7 flex-shrink-0 rounded-lg flex items-center justify-center ml-1" style={{ background: "rgba(244,63,94,0.1)" }}>
@@ -357,7 +391,7 @@ export default function SettingsClient({
         whileTap={{ scale: 0.97 }} onClick={() => setShowAddWallet(true)}
         className="w-full py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm font-medium mb-6"
         style={{ border: "1px dashed var(--border-hover)", color: "#6366f1" }}>
-        <Plus size={14} /> 新增帳戶
+        <Plus size={14} /> 新增帳簿
       </motion.button>
 
       {/* ── 分類管理 ── */}

@@ -7,15 +7,18 @@ import { getAccessibleWallets } from "@/app/actions/wallet";
 import { getCategories, createChildCategory } from "@/app/actions/category";
 import { getMerchants } from "@/app/actions/merchant";
 import { addTransaction, updateTransaction } from "@/app/actions/transaction";
+import { getFamilyMembers } from "@/app/actions/family";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { useSession } from "next-auth/react";
 
 // ── Types ─────────────────────────────────────────────────────────────
-type WalletItem = { id: string; name: string; type: string; visibility: string; balance?: number };
+type WalletItem = { id: string; name: string; type: string; visibility: string; balance?: number; currency: string; isSplitEnabled: boolean };
 type CategoryChild = { id: string; name: string; icon: string | null };
 type CategoryParent = { id: string; name: string; type: string; icon: string | null; children: CategoryChild[] };
 type MerchantItem = { id: string; name: string };
-type Panel = "category" | "wallet" | "date" | "merchant" | "recurring" | "note" | "numpad";
+type FamilyMemberItem = { id: string; userId: string; user: { id: string; name: string | null; image: string | null } };
+type Panel = "category" | "wallet" | "date" | "merchant" | "recurring" | "note" | "numpad" | "paidBy";
 
 const RECURRING_OPTIONS = [
   { value: "NONE", label: "單次不重複" },
@@ -60,6 +63,7 @@ function ListRow({ icon, label, value, onClick, active, valueColor }: any) {
 // ── Main Drawer ───────────────────────────────────────────────────────
 export default function QuickAddDrawer({ open, onClose, editData }: { open: boolean; onClose: () => void; editData?: any }) {
   const router = useRouter();
+  const { data: session } = useSession();
   const [isPending, startTransition] = useTransition();
 
   // ── 記帳欄位 ────────────────────────────────────────────────────────
@@ -73,6 +77,7 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
   const [recurringType, setRecurringType] = useState("NONE");
   const [installments, setInstallments] = useState(3);
   const [note, setNote] = useState("");
+  const [paidByUserId, setPaidByUserId] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
   // ── UI 狀態 ─────────────────────────────────────────────────────────
@@ -86,18 +91,19 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
   const [wallets, setWallets] = useState<WalletItem[]>([]);
   const [allCategories, setAllCategories] = useState<CategoryParent[]>([]);
   const [merchants, setMerchants] = useState<MerchantItem[]>([]);
+  const [members, setMembers] = useState<FamilyMemberItem[]>([]);
 
   // 分類連動：根據頂部的 type 開關即時篩選
   const categories = useMemo(() => allCategories.filter(c => c.type === type), [allCategories, type]);
 
-  // 初始化
   useEffect(() => {
     if (!open) return;
-    Promise.all([getAccessibleWallets(), getCategories(), getMerchants()])
-      .then(([w, c, m]) => {
+    Promise.all([getAccessibleWallets(), getCategories(), getMerchants(), getFamilyMembers()])
+      .then(([w, c, m, fm]) => {
         setWallets(w as WalletItem[]);
         setAllCategories(c as CategoryParent[]);
         setMerchants(m as MerchantItem[]);
+        setMembers(fm as any);
 
         if (editData) {
           setType(editData.type);
@@ -111,11 +117,13 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
           setMerchantInput(editData.merchant?.name || "");
           setRecurringType(editData.recurringType || "NONE");
           setNote(editData.note || "");
+          setPaidByUserId(editData.paidByUserId || null);
         } else {
           if (w.length > 0 && !selectedWalletId) setSelectedWalletId((w as WalletItem[])[0].id);
+          if (session?.user?.id) setPaidByUserId(session.user.id);
         }
       });
-  }, [open, editData]);
+  }, [open, editData, session]);
 
   // 重置
   const handleClose = useCallback(() => {
@@ -126,6 +134,7 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
       setActivePanel("numpad"); setDrillParentId(null); setAddingChildFor(null);
       setMerchantInput(""); setNewChildName(""); setNewChildIcon("📦");
       setRecurringType("NONE");
+      setPaidByUserId(session?.user?.id || null);
       setSelectedDate(new Date().toISOString().split("T")[0]);
     }, 300);
   }, [onClose]);
@@ -191,7 +200,9 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
         walletId: selectedWalletId || undefined, 
         merchantName: merchantInput,
         recurringType: recurringType as any,
-        installments: recurringType === "INSTALLMENT" ? installments : undefined
+        installments: recurringType === "INSTALLMENT" ? installments : undefined,
+        currency: selectedWallet?.currency || "TWD",
+        paidByUserId: (selectedWallet?.isSplitEnabled && paidByUserId) ? paidByUserId : undefined
       };
 
       if (editData) {
@@ -243,10 +254,10 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
   const displayDate = selectedDate === todayStr ? "今天" : selectedDate.replace(/-/g, "/");
   const selectedCatParent = allCategories.find(c => c.id === selectedParent);
   const selectedCatChild = selectedCatParent?.children.find(c => c.id === selectedChild);
-  // 只在子分類的 type 與目前頂部的 type 相同時，才顯示該分類
   const isCategoryValid = selectedCatParent?.type === type;
   const categoryName = (selectedCatChild && isCategoryValid) ? `${selectedCatParent?.icon} ${selectedCatParent?.name} > ${selectedCatChild.name}` : "請選擇";
   const selectedWallet = wallets.find(w => w.id === selectedWalletId);
+  const selectedPaidByUser = members.find(m => m.userId === paidByUserId)?.user;
 
   const CALC_KEYS = [
     ["7","8","9","÷"],
@@ -288,7 +299,7 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
             {/* ── 金額顯示 ── */}
             <div className="px-5 py-4 border-b text-right flex flex-col items-end justify-center min-h-[90px]" style={{ borderColor: "var(--border)" }}>
               <motion.div key={expr} initial={{ scale: 1.02 }} animate={{ scale: 1 }} className="flex items-baseline justify-end gap-1 w-full overflow-hidden">
-                <span className="text-base font-medium flex-shrink-0" style={{ color: "var(--text-muted)" }}>NT$</span>
+                <span className="text-base font-medium flex-shrink-0" style={{ color: "var(--text-muted)" }}>{selectedWallet?.currency || "NT$"}</span>
                 <span className="font-bold tabular-nums tracking-tight truncate"
                   style={{ fontSize: expr.length > 8 ? "2.5rem" : "3.5rem", color: accentColor }}>
                   {expr}
@@ -300,7 +311,10 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
             <div className="flex-1 overflow-y-auto custom-scrollbar">
               <ListRow icon="📅" label="日期" value={displayDate} onClick={() => togglePanel("date")} active={activePanel==="date"} valueColor="#6366f1" />
               <ListRow icon="🏷️" label="分類" value={categoryName} onClick={() => togglePanel("category")} active={activePanel==="category"} valueColor={isCategoryValid ? accentColor : "var(--text-muted)"} />
-              <ListRow icon="💳" label="帳戶" value={selectedWallet ? `${selectedWallet.name}${selectedWallet.visibility === "FAMILY" ? " 👥" : ""}` : "請選擇"} onClick={() => togglePanel("wallet")} active={activePanel==="wallet"} valueColor={selectedWallet ? "var(--text-primary)" : "var(--text-muted)"} />
+              <ListRow icon="💳" label="帳簿" value={selectedWallet ? `${selectedWallet.name}${selectedWallet.visibility === "FAMILY" ? " 👥" : ""}` : "請選擇"} onClick={() => togglePanel("wallet")} active={activePanel==="wallet"} valueColor={selectedWallet ? "var(--text-primary)" : "var(--text-muted)"} />
+              {selectedWallet?.isSplitEnabled && (
+                <ListRow icon="🙋" label="代墊人 (Paid By)" value={selectedPaidByUser?.name || "請選擇"} onClick={() => togglePanel("paidBy")} active={activePanel==="paidBy"} valueColor={selectedPaidByUser ? "var(--text-primary)" : "var(--text-muted)"} />
+              )}
               <ListRow icon="🏪" label="商家" value={merchantInput || "未輸入"} onClick={() => togglePanel("merchant")} active={activePanel==="merchant"} valueColor={merchantInput ? "var(--text-primary)" : "var(--text-muted)"} />
               <ListRow icon="🔄" label="週期" value={RECURRING_OPTIONS.find(r=>r.value===recurringType)?.label ?? "單次"} onClick={() => togglePanel("recurring")} active={activePanel==="recurring"} valueColor={recurringType !== "NONE" ? "var(--text-primary)" : "var(--text-muted)"} />
               <ListRow icon="📝" label="備註" value={note || "點擊輸入"} onClick={() => togglePanel("note")} active={activePanel==="note"} valueColor={note ? "var(--text-primary)" : "var(--text-muted)"} />
@@ -313,7 +327,7 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
               {activePanel !== "numpad" && (
                 <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] bg-[var(--bg-surface)]">
                   <span className="text-sm font-bold text-[var(--text-secondary)]">
-                    {activePanel === "category" ? "選擇分類" : activePanel === "wallet" ? "選擇帳戶" : activePanel === "date" ? "選擇日期" : activePanel === "merchant" ? "輸入商家" : activePanel === "recurring" ? "設定週期" : "填寫備註"}
+                    {activePanel === "category" ? "選擇分類" : activePanel === "wallet" ? "選擇帳簿" : activePanel === "date" ? "選擇日期" : activePanel === "merchant" ? "輸入商家" : activePanel === "recurring" ? "設定週期" : activePanel === "paidBy" ? "誰先代墊這筆錢？" : "填寫備註"}
                   </span>
                   <button onClick={() => setActivePanel("numpad")} className="p-1 rounded-full bg-[var(--bg-card)]">
                     <X size={20} style={{ color: "var(--text-muted)" }} />
@@ -432,7 +446,7 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
                   </div>
                 )}
 
-                {/* 3. 帳戶面板 */}
+                {/* 3. 帳簿面板 */}
                 {activePanel === "wallet" && (
                   <div className="flex flex-col">
                     {[...wallets].sort((a, b) => (a.visibility === "FAMILY" ? -1 : 1)).map(w => (
@@ -444,10 +458,30 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-base">{w.name}</span>
                             {w.visibility === "FAMILY" && <span className="text-xs px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-400 font-semibold">👥 共同</span>}
+                            {w.isSplitEnabled && <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 font-semibold">📐 拆帳</span>}
                           </div>
-                          <span className="text-sm text-[var(--text-muted)]">餘額 NT$ {w.balance?.toLocaleString() || 0}</span>
+                          <span className="text-sm text-[var(--text-muted)]">餘額 {w.currency} {w.balance?.toLocaleString() || 0}</span>
                         </div>
                         {selectedWalletId === w.id && <Check size={20} className="text-indigo-500" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* 3.5 代墊人面板 */}
+                {activePanel === "paidBy" && (
+                  <div className="flex flex-col">
+                    {members.map(m => (
+                      <button key={m.userId} onClick={() => { setPaidByUserId(m.userId); setActivePanel("numpad"); }}
+                        className="flex items-center gap-4 px-5 py-4 border-b border-[var(--border)] text-left"
+                        style={{ background: paidByUserId === m.userId ? "rgba(99,102,241,0.15)" : "transparent", color: "var(--text-primary)" }}>
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden bg-indigo-500/20 text-xl flex-shrink-0">
+                          {m.user?.image ? <img src={m.user.image} alt="avatar" /> : "😊"}
+                        </div>
+                        <div className="flex-1">
+                          <span className="font-bold text-base">{m.user?.name || "未知成員"}</span>
+                        </div>
+                        {paidByUserId === m.userId && <Check size={20} className="text-indigo-500" />}
                       </button>
                     ))}
                   </div>

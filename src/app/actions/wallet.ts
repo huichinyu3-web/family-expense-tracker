@@ -71,6 +71,8 @@ export async function createWallet(data: {
   visibility: "PERSONAL" | "FAMILY" | "CUSTOM";
   memberIds?: string[]; // CUSTOM 模式指定的成員
   initialBalance?: number;
+  currency?: string;
+  isSplitEnabled?: boolean;
 }) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Unauthorized");
@@ -87,6 +89,8 @@ export async function createWallet(data: {
     type: data.type,
     visibility: data.visibility,
     ownerId: data.visibility === "PERSONAL" ? userId : null,
+    currency: data.currency || "TWD",
+    isSplitEnabled: data.isSplitEnabled || false,
   });
 
   // 若是 CUSTOM，插入指定成員

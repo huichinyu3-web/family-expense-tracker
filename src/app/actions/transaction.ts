@@ -43,6 +43,8 @@ export async function addTransaction(data: {
   merchantName?: string;        // 輸入商家名稱，後端自動建立或對應
   recurringType?: RecurringType;
   installments?: number;        // 分期總期數
+  currency?: string;
+  paidByUserId?: string;
 }) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Unauthorized");
@@ -84,6 +86,8 @@ export async function addTransaction(data: {
         installments: data.installments,
         installmentIndex: i + 1,
         parentId: i === 0 ? null : parentId,
+        currency: data.currency ?? "TWD",
+        paidByUserId: data.paidByUserId ?? userId,
       });
     }
 
@@ -102,6 +106,8 @@ export async function addTransaction(data: {
       walletId: data.walletId ?? null,
       merchantId,
       recurringType: data.recurringType ?? "NONE",
+      currency: data.currency ?? "TWD",
+      paidByUserId: data.paidByUserId ?? userId,
     });
   }
 
@@ -212,6 +218,8 @@ export async function updateTransaction(
     merchantName?: string;
     recurringType?: RecurringType;
     installments?: number;
+    currency?: string;
+    paidByUserId?: string;
   }
 ) {
   const session = await auth();
@@ -242,6 +250,8 @@ export async function updateTransaction(
     walletId: data.walletId ?? null,
     merchantId,
     recurringType: data.recurringType ?? tx.recurringType,
+    currency: data.currency ?? tx.currency,
+    paidByUserId: data.paidByUserId ?? tx.paidByUserId,
   }).where(eq(transactions.id, transactionId));
 
   revalidatePath("/dashboard");
