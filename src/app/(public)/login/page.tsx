@@ -3,21 +3,24 @@
 import { signIn, signOut, useSession } from "next-auth/react";
 import { motion } from "framer-motion";
 import { Fingerprint, LogIn, Wallet, RefreshCw } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, Suspense } from "react";
 import { useEffect } from "react";
 
-export default function LoginPage() {
+function LoginClient() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
-  // 如果已登入，3 秒後自動跳往 Dashboard
+  // 如果已登入，3 秒後自動跳往 callbackUrl 或 Dashboard
   useEffect(() => {
     if (status !== "authenticated") return;
     const timer = setTimeout(() => {
-      router.replace("/dashboard");
+      router.replace(callbackUrl);
     }, 3000);
     return () => clearTimeout(timer); // 若使用者提前點「繼續使用」則取消計時器
-  }, [status, router]);
+  }, [status, router, callbackUrl]);
 
   // 載入中（避免閃爍）
   if (status === "loading") {
@@ -46,7 +49,7 @@ export default function LoginPage() {
             <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{session.user.email}</p>
           </div>
 
-          <motion.button whileTap={{ scale: 0.97 }} onClick={() => router.replace("/dashboard")}
+          <motion.button whileTap={{ scale: 0.97 }} onClick={() => router.replace(callbackUrl)}
             className="w-full py-3.5 rounded-xl font-semibold text-sm text-white"
             style={{ background: "var(--gradient-primary)" }}>
             繼續使用
@@ -87,7 +90,7 @@ export default function LoginPage() {
 
         {/* Google 登入 */}
         <motion.button whileTap={{ scale: 0.97 }}
-          onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+          onClick={() => signIn("google", { callbackUrl })}
           className="flex items-center justify-center gap-3 w-full py-3.5 rounded-xl font-semibold text-sm transition-all"
           style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
           onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--border-hover)")}
@@ -105,7 +108,7 @@ export default function LoginPage() {
 
         {/* 生物辨識 */}
         <motion.button whileTap={{ scale: 0.97 }}
-          onClick={() => signIn("webauthn", { callbackUrl: "/dashboard" })}
+          onClick={() => signIn("webauthn", { callbackUrl })}
           className="btn-primary flex items-center justify-center gap-3 w-full py-3.5 text-sm"
           style={{ boxShadow: "var(--shadow-glow)" }}>
           <Fingerprint size={20} />
@@ -122,5 +125,18 @@ export default function LoginPage() {
         您的生物特徵永不離開裝置，安全有保障
       </motion.p>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen flex items-center justify-center"
+        style={{ background: "radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.15) 0%, #0a0a0f 70%)" }}>
+        <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+      </main>
+    }>
+      <LoginClient />
+    </Suspense>
   );
 }
