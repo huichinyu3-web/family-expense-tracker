@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useTransition } from "react";
-import { toggleUserSystemRole, adminUpdateFamilyMemberRole, adminRemoveFamilyMember } from "@/app/actions/admin";
+import { toggleUserSystemRole, adminUpdateFamilyMemberRole, adminRemoveFamilyMember, adminDeleteFamily } from "@/app/actions/admin";
 import { useRouter } from "next/navigation";
 import { Users, Home, ShieldAlert, ShieldCheck, ChevronDown, ChevronRight, Trash2, Crown } from "lucide-react";
 
@@ -38,9 +38,17 @@ export default function SystemAdminClient({ stats }: { stats: any }) {
   };
 
   const handleRemoveMember = (memberId: string, name: string) => {
-    if (!confirm(`確定要將「${name}」從此家庭中移除嗎？`)) return;
+    if (!confirm(`確定要將「${name}」從此家庭中移除嗎？\n(若為擁有者，移除後該家庭將處於無擁有者狀態)`)) return;
     startTransition(async () => {
       await adminRemoveFamilyMember(memberId);
+      router.refresh();
+    });
+  };
+
+  const handleDeleteFamily = (familyId: string, name: string) => {
+    if (!confirm(`⚠️ 警告 ⚠️\n您即將徹底刪除「${name}」家庭群組。\n此操作將會清除該家庭所有的：\n- 成員關聯\n- 分類設定\n- 所有帳戶\n- 所有記帳明細\n\n您確定要繼續嗎？此操作無法復原！`)) return;
+    startTransition(async () => {
+      await adminDeleteFamily(familyId);
       router.refresh();
     });
   };
@@ -86,17 +94,25 @@ export default function SystemAdminClient({ stats }: { stats: any }) {
         <div className="flex flex-col gap-2 mb-6">
           {stats.families.map((f: any) => (
             <div key={f.id} className="glass-card overflow-hidden">
-              <button onClick={() => setExpandedFamily(expandedFamily === f.id ? null : f.id)}
-                className="w-full flex items-center justify-between px-4 py-3">
-                <div className="flex items-center gap-3">
+              <div className="w-full flex items-center justify-between px-4 py-3">
+                <button onClick={() => setExpandedFamily(expandedFamily === f.id ? null : f.id)} className="flex items-center gap-3 flex-1 text-left">
                   <span className="text-lg">🏠</span>
-                  <div className="text-left">
+                  <div>
                     <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{f.name}</p>
                     <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{f.members.length} 位成員</p>
                   </div>
+                </button>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => handleDeleteFamily(f.id, f.name)} disabled={pending}
+                    className="p-1.5 rounded-lg transition-colors hover:bg-rose-500/20 disabled:opacity-50"
+                    title="刪除此家庭">
+                    <Trash2 size={16} className="text-rose-500" />
+                  </button>
+                  <button onClick={() => setExpandedFamily(expandedFamily === f.id ? null : f.id)} className="p-1">
+                    {expandedFamily === f.id ? <ChevronDown size={16} style={{ color: "var(--text-muted)" }} /> : <ChevronRight size={16} style={{ color: "var(--text-muted)" }} />}
+                  </button>
                 </div>
-                {expandedFamily === f.id ? <ChevronDown size={16} style={{ color: "var(--text-muted)" }} /> : <ChevronRight size={16} style={{ color: "var(--text-muted)" }} />}
-              </button>
+              </div>
 
               <AnimatePresence>
                 {expandedFamily === f.id && (
@@ -115,28 +131,28 @@ export default function SystemAdminClient({ stats }: { stats: any }) {
                             </div>
 
                             {/* 角色 badge / 選單 */}
-                            {m.role === "OWNER"
-                              ? <span className="text-xs px-2 py-1 rounded-lg font-bold flex-shrink-0"
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              {m.role === "OWNER" ? (
+                                <span className="text-xs px-2 py-1.5 rounded-lg font-bold flex-shrink-0"
                                   style={{ background: `${rl.color}20`, color: rl.color }}>{rl.icon} {rl.label}</span>
-                              : (
-                                <div className="flex items-center gap-2 flex-shrink-0">
-                                  <select
-                                    disabled={pending}
-                                    value={m.role}
-                                    onChange={e => handleFamilyRoleChange(m.id, e.target.value)}
-                                    className="text-xs rounded-lg px-2 py-1.5 outline-none"
-                                    style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-primary)" }}>
-                                    {ALL_FAMILY_ROLES.map(r => (
-                                      <option key={r} value={r}>{ROLE_LABELS[r].icon} {ROLE_LABELS[r].label}</option>
-                                    ))}
-                                  </select>
-                                  <button onClick={() => handleRemoveMember(m.id, m.user?.name ?? "此成員")} disabled={pending}
-                                    className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                                    style={{ background: "rgba(244,63,94,0.1)" }}>
-                                    <Trash2 size={12} color="#f43f5e" />
-                                  </button>
-                                </div>
+                              ) : (
+                                <select
+                                  disabled={pending}
+                                  value={m.role}
+                                  onChange={e => handleFamilyRoleChange(m.id, e.target.value)}
+                                  className="text-xs rounded-lg px-2 py-1.5 outline-none"
+                                  style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-primary)" }}>
+                                  {ALL_FAMILY_ROLES.map(r => (
+                                    <option key={r} value={r}>{ROLE_LABELS[r].icon} {ROLE_LABELS[r].label}</option>
+                                  ))}
+                                </select>
                               )}
+                              <button onClick={() => handleRemoveMember(m.id, m.user?.name ?? "此成員")} disabled={pending}
+                                className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors"
+                                style={{ background: "rgba(244,63,94,0.1)" }}>
+                                <Trash2 size={12} color="#f43f5e" />
+                              </button>
+                            </div>
                           </div>
                         );
                       })}

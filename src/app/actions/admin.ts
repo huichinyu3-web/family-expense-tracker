@@ -82,9 +82,19 @@ export async function adminRemoveFamilyMember(memberId: string) {
     where: eq(familyMembers.id, memberId),
   });
   if (!member) throw new Error("找不到此成員");
-  if (member.role === "OWNER") throw new Error("不能移除家庭的擁有者");
 
   await db.delete(familyMembers).where(eq(familyMembers.id, memberId));
+
+  revalidatePath("/system-admin");
+  return { success: true };
+}
+
+// ── [System Admin] 刪除家庭群組 ──────────────────────────────────────────
+export async function adminDeleteFamily(familyId: string) {
+  await ensureSystemAdmin();
+
+  // SQLite 有設定 CASCADE，刪除 family 會連帶刪除所有明細與成員關聯
+  await db.delete(families).where(eq(families.id, familyId));
 
   revalidatePath("/system-admin");
   return { success: true };
