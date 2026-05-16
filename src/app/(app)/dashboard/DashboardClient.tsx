@@ -60,6 +60,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
   const [maxAmount, setMaxAmount] = useState("");
   const [member, setMember] = useState("全部");
   const [typeFilter, setTypeFilter] = useState("全部");
+  const [search, setSearch] = useState("");
 
   // 動態提取選項
   const MEMBERS = ["全部", ...Array.from(new Set(transactions.map((t:any) => t.user?.name).filter(Boolean)))];
@@ -114,9 +115,15 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
       const matchStart = startDate ? txDateStr >= startDate : true;
       const matchEnd   = endDate ? txDateStr <= endDate : true;
 
-      return isSameMonth && matchView && matchWallet && matchMember && matchType && matchCat && matchMerch && matchMin && matchMax && matchStart && matchEnd;
+      // 關鍵字搜尋
+      const matchSearch = search.trim() === "" || (
+        (tx.note?.toLowerCase() || "").includes(search.toLowerCase()) ||
+        (tx.merchant?.name?.toLowerCase() || "").includes(search.toLowerCase())
+      );
+
+      return isSameMonth && matchView && matchWallet && matchMember && matchType && matchCat && matchMerch && matchMin && matchMax && matchStart && matchEnd && matchSearch;
     });
-  }, [transactions, monthIdx, year, view, currentUserId, selectedWalletId, member, typeFilter, categoryFilter, merchantFilter, minAmount, maxAmount, startDate, endDate]);
+  }, [transactions, monthIdx, year, view, currentUserId, selectedWalletId, member, typeFilter, categoryFilter, merchantFilter, minAmount, maxAmount, startDate, endDate, search]);
 
   const totalExpense = filteredTx.filter((tx: any) => tx.type === "EXPENSE").reduce((sum: number, tx: any) => sum + Math.abs(tx.amount), 0);
   const totalIncome = filteredTx.filter((tx: any) => tx.type === "INCOME").reduce((sum: number, tx: any) => sum + tx.amount, 0);
@@ -317,11 +324,34 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
             </div>
           </div>
 
+          {/* 關鍵字搜尋 */}
+          <div className="mb-4">
+            <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>關鍵字搜尋</p>
+            <div className="relative">
+              <input 
+                type="text" 
+                placeholder="搜尋備註或商家名稱..." 
+                value={search} 
+                onChange={e => setSearch(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl text-xs outline-none bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)]"
+              />
+              {search && (
+                <button 
+                  onClick={() => setSearch("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-[var(--bg-card)]"
+                >
+                  <X size={12} style={{ color: "var(--text-muted)" }} />
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* 清除按鈕 */}
           <div className="flex justify-end pt-2 border-t border-[var(--border)] mt-2">
             <button onClick={() => {
               setStartDate(""); setEndDate(""); setMember("全部"); setCategoryFilter("全部"); 
               setMerchantFilter("全部"); setTypeFilter("全部"); setMinAmount(""); setMaxAmount("");
+              setSearch("");
             }} className="text-xs font-bold text-rose-500 bg-rose-500/10 px-4 py-2 rounded-lg">
               清除所有篩選
             </button>

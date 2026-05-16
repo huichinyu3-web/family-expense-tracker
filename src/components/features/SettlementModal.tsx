@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
 import { getWalletSettlement } from "@/app/actions/settlement";
@@ -204,7 +204,7 @@ export default function SettlementModal({ walletId, walletName, familyId, curren
   };
 
   // 一進來就自動載入結算資料
-  useState(() => { loadSettlement(); });
+  useEffect(() => { loadSettlement(); }, []);
 
   return (
     <>
