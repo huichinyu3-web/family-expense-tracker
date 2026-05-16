@@ -4,6 +4,7 @@ import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { getAccessibleWallets } from "@/app/actions/wallet";
 import { getCategories } from "@/app/actions/category";
+import { getFamilyMembers } from "@/app/actions/family";
 import SettingsClient from "./SettingsClient";
 
 export const dynamic = "force-dynamic";
@@ -23,13 +24,17 @@ export default async function SettingsPage() {
   const wallets = await getAccessibleWallets();
   const incomeCategories = await getCategories("INCOME");
   const expenseCategories = await getCategories("EXPENSE");
+  const members = await getFamilyMembers();
+  const myMember = session?.user?.id ? members.find(m => m.userId === session.user!.id) : null;
+  const familyRole = myMember?.role || "MEMBER";
 
   return (
     <SettingsClient
-      user={session?.user ? { ...session.user, systemRole } : null}
+      user={session?.user ? { ...session.user, systemRole, familyRole } : null}
       wallets={wallets}
       incomeCategories={incomeCategories}
       expenseCategories={expenseCategories}
+      familyMembers={members}
     />
   );
 }

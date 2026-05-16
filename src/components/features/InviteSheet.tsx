@@ -11,7 +11,7 @@ const ROLE_OPTIONS = [
   { value: "VIEWER", label: "唯讀觀察者", desc: "只能查看，無法記帳", icon: "👁", color: "#6b7280" },
 ];
 
-export default function InviteSheet({ onClose }: { onClose: () => void }) {
+export default function InviteSheet({ onClose, familyRole }: { onClose: () => void; familyRole: string }) {
   const [role, setRole] = useState<"MEMBER" | "ADMIN" | "VIEWER">("MEMBER");
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -64,21 +64,25 @@ export default function InviteSheet({ onClose }: { onClose: () => void }) {
           <>
             <p className="text-xs font-semibold mb-3" style={{ color: "var(--text-muted)" }}>邀請身份</p>
             <div className="flex flex-col gap-2 mb-6">
-              {ROLE_OPTIONS.map(r => (
-                <button key={r.value} onClick={() => setRole(r.value as any)}
-                  className="flex items-center gap-3 px-4 py-3 rounded-2xl text-left transition-all"
-                  style={{
-                    background: role === r.value ? `${r.color}15` : "var(--bg-card)",
-                    border: role === r.value ? `1.5px solid ${r.color}60` : "1.5px solid var(--border)",
-                  }}>
-                  <span className="text-xl">{r.icon}</span>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold" style={{ color: role === r.value ? r.color : "var(--text-primary)" }}>{r.label}</p>
-                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>{r.desc}</p>
-                  </div>
-                  {role === r.value && <Check size={16} style={{ color: r.color }} />}
-                </button>
-              ))}
+              {ROLE_OPTIONS.map(r => {
+                const disabled = r.value === "ADMIN" && familyRole !== "OWNER" && familyRole !== "ADMIN";
+                return (
+                  <button key={r.value} onClick={() => !disabled && setRole(r.value as any)}
+                    disabled={disabled}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-left transition-all ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    style={!disabled ? {
+                      background: role === r.value ? `${r.color}15` : "var(--bg-card)",
+                      border: role === r.value ? `1.5px solid ${r.color}60` : "1.5px solid var(--border)",
+                    } : { background: "var(--bg-card)", border: "1.5px solid var(--border)" }}>
+                    <span className="text-xl">{r.icon}</span>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold" style={{ color: !disabled && role === r.value ? r.color : "var(--text-primary)" }}>{r.label}</p>
+                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>{r.desc}</p>
+                    </div>
+                    {!disabled && role === r.value && <Check size={16} style={{ color: r.color }} />}
+                  </button>
+                );
+              })}
             </div>
 
             {error && <p className="text-xs text-red-400 mb-3 text-center">{error}</p>}

@@ -24,8 +24,15 @@ export async function createInvitation(role: "ADMIN" | "MEMBER" | "VIEWER" = "ME
     ),
   });
 
-  if (!membership || (membership.role !== "OWNER" && membership.role !== "ADMIN")) {
-    throw new Error("只有管理員才能產生邀請連結");
+  if (!membership) {
+    throw new Error("無法辨識家庭成員身分");
+  }
+
+  // 一般成員只能邀請一般成員或觀察者
+  if (membership.role !== "OWNER" && membership.role !== "ADMIN") {
+    if (role === "ADMIN" || role === "OWNER") {
+      throw new Error("一般成員只能邀請一般成員");
+    }
   }
 
   // 產生一次性 Token（32 bytes hex）

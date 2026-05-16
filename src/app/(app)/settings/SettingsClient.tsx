@@ -47,20 +47,25 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ── 新增帳戶對話框 ────────────────────────────────────────────────────
-function AddWalletSheet({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+// ── 新增帳簿對話框 ────────────────────────────────────────────────────
+function AddWalletSheet({ onClose, onDone, familyRole, familyMembers }: { onClose: () => void; onDone: () => void; familyRole: string; familyMembers: any[] }) {
   const [name, setName] = useState("");
   const [type, setType] = useState<"CASH"|"BANK"|"CREDIT_CARD"|"E_WALLET"|"OTHER">("CASH");
   const [visibility, setVisibility] = useState<"PERSONAL"|"FAMILY"|"CUSTOM">("FAMILY");
   const [initialBalance, setInitialBalance] = useState("0");
   const [currency, setCurrency] = useState("TWD");
   const [isSplitEnabled, setIsSplitEnabled] = useState(false);
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [pending, startTransition] = useTransition();
 
   const handleSave = () => {
     if (!name.trim()) return;
+    if (visibility === "CUSTOM" && selectedMembers.length === 0) {
+      alert("請至少選擇一位共享成員！");
+      return;
+    }
     startTransition(async () => {
-      await createWallet({ name: name.trim(), type, visibility, initialBalance: parseFloat(initialBalance) || 0, currency, isSplitEnabled });
+      await createWallet({ name: name.trim(), type, visibility, initialBalance: parseFloat(initialBalance) || 0, currency, isSplitEnabled, memberIds: selectedMembers });
       onDone();
     });
   };
@@ -108,21 +113,45 @@ function AddWalletSheet({ onClose, onDone }: { onClose: () => void; onDone: () =
         <label className="block text-xs mb-2" style={{ color: "var(--text-muted)" }}>存取範圍</label>
         <div className="flex gap-2 mb-4">
           {[
-            { k: "PERSONAL", label: "👤 僅限本人" },
-            { k: "FAMILY",   label: "🏠 全家共用" },
-            { k: "CUSTOM",   label: "🤝 指定成員" },
-          ].map(({ k, label }) => (
-            <button key={k} onClick={() => setVisibility(k as typeof visibility)}
-              className="flex-1 py-2 rounded-xl text-xs font-medium"
-              style={{
+            { k: "PERSONAL", label: "👤 僅限本人", disabled: false },
+            { k: "FAMILY",   label: "🏠 全家共用", disabled: familyRole !== "OWNER" && familyRole !== "ADMIN" },
+            { k: "CUSTOM",   label: "🤝 指定成員", disabled: false },
+          ].map(({ k, label, disabled }) => (
+            <button key={k} onClick={() => !disabled && setVisibility(k as typeof visibility)}
+              disabled={disabled}
+              className={`flex-1 py-2 rounded-xl text-xs font-medium ${disabled ? 'opacity-30 cursor-not-allowed' : ''}`}
+              style={!disabled ? {
                 background: visibility === k ? "rgba(99,102,241,0.2)" : "var(--bg-card)",
                 color: visibility === k ? "#6366f1" : "var(--text-secondary)",
                 border: visibility === k ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
-              }}>
+              } : { background: "var(--bg-card)", color: "var(--text-muted)", border: "1px solid var(--border)" }}>
               {label}
             </button>
           ))}
         </div>
+
+        {/* 選擇成員 (僅限 CUSTOM) */}
+        {visibility === "CUSTOM" && (
+          <div className="mb-6 p-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)]">
+            <label className="block text-xs font-bold mb-2" style={{ color: "var(--text-primary)" }}>選擇要共享的成員</label>
+            <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+              {familyMembers.map(m => (
+                <label key={m.userId} className="flex items-center gap-3 p-2 rounded-lg hover:bg-[var(--bg-surface)] cursor-pointer">
+                  <input type="checkbox" checked={selectedMembers.includes(m.userId)} 
+                    onChange={(e) => {
+                      if (e.target.checked) setSelectedMembers(prev => [...prev, m.userId]);
+                      else setSelectedMembers(prev => prev.filter(id => id !== m.userId));
+                    }} 
+                    className="w-4 h-4 accent-indigo-500" />
+                  <div className="w-6 h-6 rounded-full overflow-hidden bg-indigo-500/20 flex items-center justify-center flex-shrink-0">
+                    {m.user?.image ? <img src={m.user.image} alt="avatar" /> : <span className="text-xs">😊</span>}
+                  </div>
+                  <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{m.user?.name || "未知成員"}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* 初始金額 */}
         <div className="flex gap-4 mb-6">
@@ -179,12 +208,13 @@ function AddWalletSheet({ onClose, onDone }: { onClose: () => void; onDone: () =
 
 // ── 主設定頁面 ────────────────────────────────────────────────────────
 export default function SettingsClient({
-  user, wallets, incomeCategories, expenseCategories,
+  user, wallets, incomeCategories, expenseCategories, familyMembers
 }: {
-  user: { id?: string | null; name?: string | null; email?: string | null; image?: string | null; systemRole?: string } | null;
+  user: { id?: string | null; name?: string | null; email?: string | null; image?: string | null; systemRole?: string; familyRole?: string } | null;
   wallets: Wallet[];
   incomeCategories: CategoryParent[];
   expenseCategories: CategoryParent[];
+  familyMembers: any[];
 }) {
   const router = useRouter();
   const [showAddWallet, setShowAddWallet] = useState(false);
@@ -346,7 +376,7 @@ export default function SettingsClient({
           <p className="text-xs" style={{ color: "var(--text-muted)" }}>{user?.email ?? ""}</p>
           <span className="text-[10px] px-2 py-0.5 rounded-full mt-1 inline-block"
             style={{ background: "rgba(99,102,241,0.15)", color: "#6366f1" }}>
-            家庭擁有者 (Owner)
+            {user?.familyRole === "OWNER" ? "家庭擁有者 (Owner)" : user?.familyRole === "ADMIN" ? "管理員 (Admin)" : "一般成員"}
           </span>
         </div>
         <ChevronRight size={16} style={{ color: "var(--text-muted)" }} />
@@ -382,9 +412,13 @@ export default function SettingsClient({
                 )}
               </div>
             </div>
-            <button onClick={() => handleDeleteWallet(w.id, w.name)} className="w-7 h-7 flex-shrink-0 rounded-lg flex items-center justify-center ml-1" style={{ background: "rgba(244,63,94,0.1)" }}>
-              <Trash2 size={12} color="#f43f5e" />
-            </button>
+            
+            {/* 權限判斷：FAMILY帳簿僅有OWNER/ADMIN可刪除，或是這是他自己的PERSONAL/CUSTOM */}
+            {!(w.visibility === "FAMILY" && user?.familyRole !== "OWNER" && user?.familyRole !== "ADMIN") && (
+              <button onClick={() => handleDeleteWallet(w.id, w.name)} className="w-7 h-7 flex-shrink-0 rounded-lg flex items-center justify-center ml-1" style={{ background: "rgba(244,63,94,0.1)" }}>
+                <Trash2 size={12} color="#f43f5e" />
+              </button>
+            )}
           </motion.div>
         );
       })}
@@ -505,7 +539,7 @@ export default function SettingsClient({
         Family Expense Tracker v0.2.0
       </p>
 
-      {/* ── 新增帳戶 Drawer ── */}
+      {/* ── 新增帳簿 Drawer ── */}
       <AnimatePresence>
         {showAddWallet && (
           <>
@@ -516,6 +550,8 @@ export default function SettingsClient({
             <AddWalletSheet
               onClose={() => setShowAddWallet(false)}
               onDone={() => { setShowAddWallet(false); router.refresh(); }}
+              familyRole={user?.familyRole || "MEMBER"}
+              familyMembers={familyMembers}
             />
           </>
         )}
@@ -529,7 +565,7 @@ export default function SettingsClient({
               style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
               onClick={() => setShowInvite(false)}
             />
-            <InviteSheet onClose={() => setShowInvite(false)} />
+            <InviteSheet onClose={() => setShowInvite(false)} familyRole={user?.familyRole || "MEMBER"} />
           </>
         )}
       </AnimatePresence>

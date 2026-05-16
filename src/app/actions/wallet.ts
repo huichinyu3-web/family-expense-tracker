@@ -80,6 +80,15 @@ export async function createWallet(data: {
   const userId = session.user.id;
   const familyId = await ensureFamily(userId);
 
+  if (data.visibility === "FAMILY") {
+    const myMember = await db.query.familyMembers.findFirst({
+      where: and(eq(familyMembers.userId, userId), eq(familyMembers.familyId, familyId))
+    });
+    if (myMember?.role !== "OWNER" && myMember?.role !== "ADMIN") {
+      throw new Error("Only OWNER or ADMIN can create FAMILY wallets.");
+    }
+  }
+
   const walletId = crypto.randomUUID();
 
   await db.insert(wallets).values({
@@ -157,6 +166,20 @@ export async function getWalletTxCount(walletId: string): Promise<number> {
 export async function deleteWallet(walletId: string, force = false) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Unauthorized");
+
+  const wallet = await db.query.wallets.findFirst({
+    where: eq(wallets.id, walletId)
+  });
+  if (!wallet) throw new Error("Wallet not found");
+
+  if (wallet.visibility === "FAMILY") {
+    const myMember = await db.query.familyMembers.findFirst({
+      where: and(eq(familyMembers.userId, session.user.id), eq(familyMembers.familyId, wallet.familyId))
+    });
+    if (myMember?.role !== "OWNER" && myMember?.role !== "ADMIN") {
+      throw new Error("Only OWNER or ADMIN can delete FAMILY wallets.");
+    }
+  }
 
   // 取得交易數量
   const txCount = await getWalletTxCount(walletId);
