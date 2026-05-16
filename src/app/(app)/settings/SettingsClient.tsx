@@ -5,9 +5,9 @@ import { useState, useTransition } from "react";
 import {
   Fingerprint, Shield, ShieldAlert, ChevronRight, Users, Bell,
   Trash2, LogOut, Moon, Globe, Key, Plus, Wallet,
-  Tag, X, ChevronDown, ChevronUp, Eye, EyeOff, Check
+  Tag, X, ChevronDown, ChevronUp, Eye, EyeOff, Check, Edit2, Loader2
 } from "lucide-react";
-import { createWallet, deleteWallet } from "@/app/actions/wallet";
+import { createWallet, deleteWallet, updateWallet } from "@/app/actions/wallet";
 import { createParentCategory, createChildCategory, toggleCategoryVisibility, deleteCategory } from "@/app/actions/category";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -19,6 +19,7 @@ import FamilyMembersPanel from "@/components/features/FamilyMembersPanel";
 type Wallet = {
   id: string; name: string; type: string; visibility: string; ownerId?: string | null; balance?: number;
   currency: string; isSplitEnabled: boolean;
+  walletMembers?: { userId: string }[];
 };
 type CategoryChild = { id: string; name: string; icon: string | null; isDefault: boolean; isHidden: boolean; };
 type CategoryParent = { id: string; name: string; icon: string | null; type: string; isDefault: boolean; isHidden: boolean; children: CategoryChild[]; };
@@ -211,6 +212,132 @@ function AddWalletSheet({ onClose, onDone, familyRole, familyMembers }: { onClos
   );
 }
 
+// ── 編輯帳簿對話框 ────────────────────────────────────────────────────
+function EditWalletSheet({ wallet, onClose, onDone, familyRole, familyMembers }: { wallet: Wallet; onClose: () => void; onDone: () => void; familyRole: string; familyMembers: any[] }) {
+  const [name, setName] = useState(wallet.name);
+  const [type, setType] = useState<"CASH"|"BANK"|"CREDIT_CARD"|"E_WALLET"|"OTHER">(wallet.type as any);
+  const [visibility, setVisibility] = useState<"PERSONAL"|"FAMILY"|"CUSTOM">(wallet.visibility as any);
+  const [selectedMembers, setSelectedMembers] = useState<string[]>(wallet.walletMembers?.map(m => m.userId) || []);
+  const [pending, startTransition] = useTransition();
+
+  const handleSave = () => {
+    if (!name.trim()) return;
+    if (visibility === "CUSTOM" && selectedMembers.length === 0) {
+      alert("請至少選擇一位共享成員！");
+      return;
+    }
+    startTransition(async () => {
+      try {
+        await updateWallet(wallet.id, { name: name.trim(), type, visibility, memberIds: selectedMembers });
+        onDone();
+      } catch (e: any) {
+        alert(e.message || "更新失敗");
+      }
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-end" onClick={onClose}>
+      <motion.div
+        initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+        transition={{ type: "spring", damping: 28, stiffness: 280 }}
+        className="w-full max-w-lg mx-auto rounded-t-3xl p-6"
+        style={{ background: "var(--bg-surface)", border: "1px solid var(--border)", borderBottom: "none" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-base font-bold" style={{ color: "var(--text-primary)" }}>編輯帳簿 (Edit Ledger)</h2>
+          <button onClick={onClose}><X size={18} style={{ color: "var(--text-muted)" }} /></button>
+        </div>
+
+        {/* 名稱 */}
+        <label className="block text-xs mb-1" style={{ color: "var(--text-muted)" }}>帳簿名稱</label>
+        <input
+          className="w-full px-3 py-2.5 rounded-xl text-sm mb-4 outline-none"
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+          placeholder="例如：日本旅遊公積金、家庭日常"
+          value={name} onChange={e => setName(e.target.value)}
+        />
+
+        {/* 類型 */}
+        <label className="block text-xs mb-2" style={{ color: "var(--text-muted)" }}>類型</label>
+        <div className="flex gap-2 flex-wrap mb-4">
+          {(Object.entries(WALLET_TYPE_LABELS) as [string, {label:string;icon:string}][]).map(([k, v]) => (
+            <button key={k} onClick={() => setType(k as typeof type)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium"
+              style={{
+                background: type === k ? "rgba(99,102,241,0.2)" : "var(--bg-card)",
+                color: type === k ? "#6366f1" : "var(--text-secondary)",
+                border: type === k ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
+              }}>
+              {v.icon} {v.label}
+            </button>
+          ))}
+        </div>
+
+        {/* 存取範圍 */}
+        <label className="block text-xs mb-2" style={{ color: "var(--text-muted)" }}>存取範圍</label>
+        <div className="flex gap-2 mb-4">
+          {[
+            { k: "PERSONAL", label: "👤 僅限本人", disabled: false },
+            { k: "FAMILY",   label: "🏠 全家共用", disabled: familyRole !== "OWNER" && familyRole !== "ADMIN" },
+            { k: "CUSTOM",   label: "🤝 指定成員", disabled: false },
+          ].map(({ k, label, disabled }) => (
+            <button key={k} onClick={() => !disabled && setVisibility(k as typeof visibility)}
+              disabled={disabled}
+              className={`flex-1 py-2 rounded-xl text-xs font-medium ${disabled ? 'opacity-30 cursor-not-allowed' : ''}`}
+              style={!disabled ? {
+                background: visibility === k ? "rgba(99,102,241,0.2)" : "var(--bg-card)",
+                color: visibility === k ? "#6366f1" : "var(--text-secondary)",
+                border: visibility === k ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
+              } : { background: "var(--bg-card)", color: "var(--text-muted)", border: "1px solid var(--border)" }}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* 選擇成員 (僅限 CUSTOM) */}
+        {visibility === "CUSTOM" && (
+          <div className="mb-6 p-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)]">
+            <label className="block text-xs font-bold mb-2" style={{ color: "var(--text-primary)" }}>選擇要共享的成員</label>
+            <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+              {familyMembers.map(m => {
+                const isSelected = selectedMembers.includes(m.userId);
+                return (
+                  <div key={m.userId} 
+                    onClick={() => {
+                      if (isSelected) setSelectedMembers(prev => prev.filter(id => id !== m.userId));
+                      else setSelectedMembers(prev => [...prev, m.userId]);
+                    }}
+                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-[var(--bg-surface)] cursor-pointer">
+                    <div className={`w-5 h-5 flex-shrink-0 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-500 border-indigo-500' : 'border-[var(--border)]'}`}>
+                      {isSelected && <Check size={14} color="#fff" />}
+                    </div>
+                    <div className="w-8 h-8 rounded-full overflow-hidden bg-indigo-500/20 flex items-center justify-center flex-shrink-0">
+                      {m.user?.image ? <img src={m.user.image} alt="avatar" /> : <span className="text-xs">😊</span>}
+                    </div>
+                    <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{m.user?.name || "未知成員"}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <motion.button
+          whileTap={{ scale: 0.97 }} onClick={handleSave} disabled={pending || !name.trim()}
+          className="w-full h-12 rounded-2xl font-semibold text-sm"
+          style={{
+            background: name.trim() ? "var(--gradient-primary)" : "var(--bg-card)",
+            color: name.trim() ? "#fff" : "var(--text-muted)",
+          }}>
+          {pending ? "儲存中..." : "確認儲存"}
+        </motion.button>
+      </motion.div>
+    </div>
+  );
+}
+
 // ── 主設定頁面 ────────────────────────────────────────────────────────
 export default function SettingsClient({
   user, wallets, incomeCategories, expenseCategories, familyMembers
@@ -223,6 +350,8 @@ export default function SettingsClient({
 }) {
   const router = useRouter();
   const [showAddWallet, setShowAddWallet] = useState(false);
+  const [editingWallet, setEditingWallet] = useState<Wallet | null>(null);
+  const [deletingWalletId, setDeletingWalletId] = useState<string | null>(null);
   const [showInvite, setShowInvite] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
   const [expandedCatType, setExpandedCatType] = useState<"INCOME"|"EXPENSE"|null>(null);
@@ -233,19 +362,28 @@ export default function SettingsClient({
   const [isPending, startTransition] = useTransition();
 
   const handleDeleteWallet = (id: string, name: string) => {
+    if (deletingWalletId) return; // 避免連按
+    setDeletingWalletId(id);
     startTransition(async () => {
-      // 第一次：不帶 force，取得確認資訊
-      const result = await deleteWallet(id, false);
-      if (result && 'needsConfirm' in result && result.needsConfirm) {
-        const confirmed = confirm(
-          `⚠️ 警告：「${name}」帳戶下有 ${result.txCount} 筆交易記錄。\n\n` +
-          `刪除帳戶將會一併永久刪除這 ${result.txCount} 筆交易，此操作無法復原！\n\n確定要繼續嗎？`
-        );
-        if (!confirmed) return;
-        // 第二次：帶 force 真正執行
-        await deleteWallet(id, true);
+      try {
+        const result = await deleteWallet(id, false);
+        if (result && 'needsConfirm' in result && result.needsConfirm) {
+          const confirmed = confirm(
+            `⚠️ 警告：「${name}」帳戶下有 ${result.txCount} 筆交易記錄。\n\n` +
+            `刪除帳戶將會一併永久刪除這 ${result.txCount} 筆交易，此操作無法復原！\n\n確定要繼續嗎？`
+          );
+          if (!confirmed) {
+            setDeletingWalletId(null);
+            return;
+          }
+          await deleteWallet(id, true);
+        }
+        router.refresh();
+      } catch (e: any) {
+        alert(e.message || "刪除失敗");
+      } finally {
+        setDeletingWalletId(null);
       }
-      router.refresh();
     });
   };
 
@@ -418,11 +556,19 @@ export default function SettingsClient({
               </div>
             </div>
             
-            {/* 權限判斷：FAMILY帳簿僅有OWNER/ADMIN可刪除，或是這是他自己的PERSONAL/CUSTOM */}
-            {!(w.visibility === "FAMILY" && user?.familyRole !== "OWNER" && user?.familyRole !== "ADMIN") && (
-              <button onClick={() => handleDeleteWallet(w.id, w.name)} className="w-7 h-7 flex-shrink-0 rounded-lg flex items-center justify-center ml-1" style={{ background: "rgba(244,63,94,0.1)" }}>
-                <Trash2 size={12} color="#f43f5e" />
-              </button>
+            {/* 權限判斷：
+                1. FAMILY 帳簿僅限 OWNER/ADMIN 刪除/編輯
+                2. CUSTOM 和 PERSONAL 帳簿，創建者(ownerId) 或 OWNER/ADMIN 可以刪除/編輯
+            */}
+            {((user?.familyRole === "OWNER" || user?.familyRole === "ADMIN") || w.ownerId === user?.id) && (
+              <div className="flex items-center gap-1 ml-2">
+                <button onClick={() => setEditingWallet(w)} className="w-7 h-7 flex-shrink-0 rounded-lg flex items-center justify-center transition-colors" style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
+                  <Edit2 size={12} />
+                </button>
+                <button onClick={() => handleDeleteWallet(w.id, w.name)} disabled={deletingWalletId === w.id} className="w-7 h-7 flex-shrink-0 rounded-lg flex items-center justify-center transition-colors" style={{ background: "rgba(244,63,94,0.1)" }}>
+                  {deletingWalletId === w.id ? <Loader2 size={12} className="animate-spin text-red-500" /> : <Trash2 size={12} color="#f43f5e" />}
+                </button>
+              </div>
             )}
           </motion.div>
         );
@@ -555,6 +701,25 @@ export default function SettingsClient({
             <AddWalletSheet
               onClose={() => setShowAddWallet(false)}
               onDone={() => { setShowAddWallet(false); router.refresh(); }}
+              familyRole={user?.familyRole || "MEMBER"}
+              familyMembers={familyMembers}
+            />
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── 編輯帳簿 Drawer ── */}
+      <AnimatePresence>
+        {editingWallet && (
+          <>
+            <motion.div className="fixed inset-0 z-[60]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+              onClick={() => setEditingWallet(null)}
+            />
+            <EditWalletSheet
+              wallet={editingWallet}
+              onClose={() => setEditingWallet(null)}
+              onDone={() => { setEditingWallet(null); router.refresh(); }}
               familyRole={user?.familyRole || "MEMBER"}
               familyMembers={familyMembers}
             />

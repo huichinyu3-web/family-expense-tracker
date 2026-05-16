@@ -100,7 +100,7 @@ export async function createWallet(data: {
     name: data.name,
     type: data.type,
     visibility: data.visibility,
-    ownerId: data.visibility === "PERSONAL" ? userId : null,
+    ownerId: userId, // 記錄創建者，讓創建者也能管理自己建的 CUSTOM 帳簿
     currency: data.currency || "TWD",
     isSplitEnabled: data.isSplitEnabled || false,
   });
@@ -187,10 +187,8 @@ export async function deleteWallet(walletId: string, force = false) {
     if (wallet.visibility === "PERSONAL" && wallet.ownerId !== session.user.id) {
       throw new Error("You can only delete your own PERSONAL wallets.");
     }
-    if (wallet.visibility === "CUSTOM") {
-      // 若為 CUSTOM 帳簿且非管理員，檢查是否為創建者（或目前暫不允許一般成員刪除 CUSTOM，需請管理員協助）
-      // 這裡採用嚴格限制：一般成員無權刪除 CUSTOM 帳簿
-      throw new Error("Only OWNER or ADMIN can delete CUSTOM wallets.");
+    if (wallet.visibility === "CUSTOM" && wallet.ownerId !== session.user.id) {
+      throw new Error("Only OWNER, ADMIN, or the creator can delete CUSTOM wallets.");
     }
   }
 
@@ -208,6 +206,61 @@ export async function deleteWallet(walletId: string, force = false) {
   }
 
   await db.delete(wallets).where(eq(wallets.id, walletId));
+  revalidatePath("/settings");
+  return { success: true };
+}
+
+// ── 更新帳戶 ─────────────────────────────────────────────────────────
+export async function updateWallet(
+  walletId: string,
+  data: {
+    name: string;
+    type: "CASH" | "BANK" | "CREDIT_CARD" | "E_WALLET" | "OTHER";
+    visibility: "PERSONAL" | "FAMILY" | "CUSTOM";
+    memberIds?: string[];
+  }
+) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  const wallet = await db.query.wallets.findFirst({
+    where: eq(wallets.id, walletId)
+  });
+  if (!wallet) throw new Error("Wallet not found");
+
+  const myMember = await db.query.familyMembers.findFirst({
+    where: and(eq(familyMembers.userId, session.user.id), eq(familyMembers.familyId, wallet.familyId))
+  });
+  const isAdmin = myMember?.role === "OWNER" || myMember?.role === "ADMIN";
+
+  // 權限檢查：只有 ADMIN/OWNER 或是創建者可以編輯
+  if (!isAdmin && wallet.ownerId !== session.user.id) {
+    throw new Error("Only OWNER, ADMIN, or the creator can edit this wallet.");
+  }
+
+  // 若改為 FAMILY，只有 ADMIN/OWNER 可執行
+  if (data.visibility === "FAMILY" && !isAdmin) {
+    throw new Error("Only OWNER or ADMIN can set a wallet to FAMILY visibility.");
+  }
+
+  // 更新錢包基本資訊
+  await db.update(wallets)
+    .set({
+      name: data.name,
+      type: data.type,
+      visibility: data.visibility,
+    })
+    .where(eq(wallets.id, walletId));
+
+  // 更新 CUSTOM 成員：先刪除舊的，再插入新的
+  await db.delete(walletMembers).where(eq(walletMembers.walletId, walletId));
+  
+  if (data.visibility === "CUSTOM" && data.memberIds?.length) {
+    await db.insert(walletMembers).values(
+      data.memberIds.map((uid) => ({ walletId, userId: uid }))
+    );
+  }
+
   revalidatePath("/settings");
   return { success: true };
 }
