@@ -5,7 +5,6 @@ import { motion } from "framer-motion";
 import { Fingerprint, LogIn, Wallet, RefreshCw } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, Suspense } from "react";
-import { useEffect } from "react";
 
 function LoginClient() {
   const { data: session, status } = useSession();
