@@ -30,7 +30,7 @@ export async function createInvitation(role: "ADMIN" | "MEMBER" | "VIEWER" = "ME
 
   // 一般成員只能邀請一般成員或觀察者
   if (membership.role !== "OWNER" && membership.role !== "ADMIN") {
-    if (role === "ADMIN" || role === "OWNER") {
+    if (role === "ADMIN" || (role as string) === "OWNER") {
       throw new Error("一般成員只能邀請一般成員");
     }
   }
