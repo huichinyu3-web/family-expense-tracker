@@ -35,7 +35,7 @@ function Avatar({ initial, colorId }: { initial: string; colorId: string }) {
 }
 
 // @ts-ignore
-export default function DashboardClient({ transactions, wallets, currentUserId, userName, familyName }) {
+export default function DashboardClient({ transactions, wallets, currentUserId, userName, familyName, familyMembersCount }) {
   const now = new Date();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -46,6 +46,12 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
   const [selectedTx, setSelectedTx] = useState<any>(null);
   const [editTxData, setEditTxData] = useState<any>(null);
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
+
+  // 當選擇特定帳簿時，將 ID 寫入 localStorage 供 QuickAddDrawer 讀取
+  const handleWalletSelect = (id: string) => {
+    setSelectedWalletId(id);
+    if (id !== "ALL") localStorage.setItem("lastSelectedWallet", id);
+  };
 
   const handleDelete = () => {
     if (!selectedTx || selectedTx.userId !== currentUserId) return;
@@ -80,6 +86,21 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
   
   const selectedWallet = selectedWalletId === "ALL" ? null : wallets.find((w: any) => w.id === selectedWalletId);
   
+  // 計算拆帳狀態
+  let splitState = null;
+  if (selectedWallet?.isSplitEnabled) {
+    // 當前帳簿總人數
+    const membersCount = selectedWallet.visibility === "FAMILY" ? familyMembersCount : (selectedWallet.walletMembers?.length || 0) + 1;
+    // 我代墊的總額
+    const myPaid = filteredTx.filter((tx: any) => tx.type === "EXPENSE" && tx.paidByUserId === currentUserId).reduce((s: number, t: any) => s + Math.abs(t.amount), 0);
+    // 我應負擔的份額 (總支出 / 總人數)
+    const myShare = membersCount > 0 ? totalExpense / membersCount : 0;
+    // 淨餘額 (正: 別人欠我, 負: 我欠別人)
+    const myNetBalance = myPaid - myShare;
+    
+    splitState = { myPaid, myShare, myNetBalance, membersCount };
+  }
+
   // 計算顯示的餘額或預算
   // 如果選了特定帳簿，中心顯示「該帳簿當前總餘額」
   // 如果是全部，則顯示簡易預算剩餘（Mock）
@@ -159,7 +180,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
 
       {/* ── 帳簿過濾選擇器 ── */}
       <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2 mb-4">
-        <button onClick={() => setSelectedWalletId("ALL")}
+        <button onClick={() => handleWalletSelect("ALL")}
           className="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all"
           style={{
             background: selectedWalletId === "ALL" ? "rgba(99,102,241,0.15)" : "var(--bg-card)",
@@ -169,7 +190,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
           📊 全部總覽
         </button>
         {wallets.map((w: any) => (
-          <button key={w.id} onClick={() => setSelectedWalletId(w.id)}
+          <button key={w.id} onClick={() => handleWalletSelect(w.id)}
             className="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
             style={{
               background: selectedWalletId === w.id ? "rgba(16,185,129,0.15)" : "var(--bg-card)",
@@ -263,7 +284,38 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
         </div>
       </motion.div>
 
-      {/* ── 收支摘要卡片 ── */}
+      {/* ── 拆帳進度卡片 ── */}
+      {selectedWallet?.isSplitEnabled && splitState && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+          className="mt-6 p-4 rounded-3xl relative overflow-hidden"
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+          <div className="flex items-start justify-between mb-3 relative z-10">
+            <div>
+              <p className="text-xs font-bold px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-500 inline-block mb-1">
+                📐 拆帳模式 (本月狀態)
+              </p>
+              <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                {splitState.myNetBalance >= 0 ? "目前您淨賺/應收回" : "目前您需補付"}
+              </p>
+            </div>
+            <span className="text-xl font-black tabular-nums" style={{ color: splitState.myNetBalance >= 0 ? "#10b981" : "#f43f5e" }}>
+              {splitState.myNetBalance > 0 ? "+" : ""}NT${Math.abs(Math.round(splitState.myNetBalance)).toLocaleString()}
+            </span>
+          </div>
+          <div className="flex gap-2 relative z-10 text-xs mt-3 pt-3 border-t border-[var(--border)]">
+            <div className="flex-1">
+              <span style={{ color: "var(--text-muted)" }}>我已代墊</span>
+              <p className="font-bold mt-0.5" style={{ color: "var(--text-primary)" }}>NT${Math.round(splitState.myPaid).toLocaleString()}</p>
+            </div>
+            <div className="flex-1">
+              <span style={{ color: "var(--text-muted)" }}>我應負擔 ({splitState.membersCount}人均分)</span>
+              <p className="font-bold mt-0.5" style={{ color: "var(--text-primary)" }}>NT${Math.round(splitState.myShare).toLocaleString()}</p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* ── 快速操作區 ── */}
       <div className="grid grid-cols-2 gap-3 mb-6">
         {/* 支出 */}
         <div className="glass-card p-4">

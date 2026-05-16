@@ -45,11 +45,12 @@ function formatDate(dateStr: string) {
   return `${d.getMonth() + 1} 月 ${d.getDate()} 日`;
 }
 
-export default function TransactionsClient({ initialData, currentUserId }: { initialData: any[]; currentUserId: string | undefined }) {
+export default function TransactionsClient({ initialData, wallets, currentUserId }: { initialData: any[]; wallets: any[]; currentUserId: string | undefined }) {
   const router = useRouter();
   const [search, setSearch]       = useState("");
   const [member, setMember]       = useState("全部");
   const [typeFilter, setTypeFilter] = useState("全部");
+  const [walletFilter, setWalletFilter] = useState("全部");
   const [showFilter, setShowFilter] = useState(false);
 
   // 編輯與刪除狀態
@@ -65,7 +66,8 @@ export default function TransactionsClient({ initialData, currentUserId }: { ini
     const matchType   = typeFilter === "全部"
       || (typeFilter === "支出" && tx.type === "EXPENSE")
       || (typeFilter === "收入" && tx.type === "INCOME");
-    return matchSearch && matchMember && matchType;
+    const matchWallet = walletFilter === "全部" || tx.walletId === walletFilter;
+    return matchSearch && matchMember && matchType && matchWallet;
   });
 
   const totalExpense = filtered.filter(t => t.type === "EXPENSE").reduce((s, t) => s + Math.abs(t.amount), 0);
@@ -131,8 +133,31 @@ export default function TransactionsClient({ initialData, currentUserId }: { ini
           animate={{ opacity: 1, height: "auto" }}
           className="glass-card p-4 mb-3 overflow-hidden"
         >
+          <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>帳簿</p>
+          <div className="flex gap-2 mb-3 overflow-x-auto custom-scrollbar pb-1">
+            <button onClick={() => setWalletFilter("全部")}
+              className="px-3 py-1 rounded-lg text-xs font-medium transition-all flex-shrink-0"
+              style={{
+                background: walletFilter === "全部" ? "rgba(99,102,241,0.2)" : "var(--bg-card)",
+                color: walletFilter === "全部" ? "#6366f1" : "var(--text-secondary)",
+                border: walletFilter === "全部" ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
+              }}>
+              全部
+            </button>
+            {wallets.map(w => (
+              <button key={w.id} onClick={() => setWalletFilter(w.id)}
+                className="px-3 py-1 rounded-lg text-xs font-medium transition-all flex-shrink-0"
+                style={{
+                  background: walletFilter === w.id ? "rgba(99,102,241,0.2)" : "var(--bg-card)",
+                  color: walletFilter === w.id ? "#6366f1" : "var(--text-secondary)",
+                  border: walletFilter === w.id ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
+                }}>
+                {w.name}
+              </button>
+            ))}
+          </div>
           <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>成員</p>
-          <div className="flex gap-2 mb-3">
+          <div className="flex gap-2 mb-3 overflow-x-auto custom-scrollbar pb-1">
             {MEMBERS.map(m => (
               <button key={m} onClick={() => setMember(m)}
                 className="px-3 py-1 rounded-lg text-xs font-medium transition-all"

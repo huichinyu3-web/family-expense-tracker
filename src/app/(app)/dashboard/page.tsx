@@ -16,14 +16,15 @@ export default async function DashboardPage() {
     return <div>請先登入</div>;
   }
 
-  // 取得使用者的 Family 名稱
+  // 取得使用者的 Family 名稱與總人數
   const membership = await db.query.familyMembers.findFirst({
     where: eq(familyMembers.userId, userId),
-    with: { family: true },
+    with: { family: { with: { members: true } } },
   });
 
   const transactions = await getTransactions();
   const wallets = await getAccessibleWallets();
+  const familyMembersCount = membership?.family?.members?.length || 1;
 
   return (
     <DashboardClient 
@@ -32,6 +33,7 @@ export default async function DashboardPage() {
       currentUserId={userId}
       userName={session?.user?.name || "使用者"}
       familyName={membership?.family?.name || "我的家庭"}
+      familyMembersCount={familyMembersCount}
     />
   );
 }

@@ -179,7 +179,12 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
           setNote(editData.note || "");
           setPaidByUserId(editData.paidByUserId || null);
         } else {
-          if (w.length > 0 && !selectedWalletId) setSelectedWalletId((w as WalletItem[])[0].id);
+          const lastWalletId = localStorage.getItem("lastSelectedWallet");
+          if (lastWalletId && lastWalletId !== "ALL" && w.some(wi => wi.id === lastWalletId)) {
+            setSelectedWalletId(lastWalletId);
+          } else if (w.length > 0 && !selectedWalletId) {
+            setSelectedWalletId((w as WalletItem[])[0].id);
+          }
           if (session?.user?.id) setPaidByUserId(session.user.id);
         }
       });
