@@ -2,7 +2,7 @@
 
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { motion } from "framer-motion";
-import { TrendingDown, TrendingUp, ChevronLeft, ChevronRight, Bell, User, Users, Trash2, Edit2, X } from "lucide-react";
+import { TrendingDown, TrendingUp, ChevronLeft, ChevronRight, Bell, User, Users, Trash2, Edit2, X, SlidersHorizontal } from "lucide-react";
 import { useState, useMemo, useTransition } from "react";
 import { CountUp } from "@/components/ui/CountUp";
 import { deleteTransaction } from "@/app/actions/transaction";
