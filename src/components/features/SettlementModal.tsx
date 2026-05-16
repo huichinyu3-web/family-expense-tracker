@@ -160,12 +160,43 @@ export default function SettlementModal({ walletId, walletName, familyId, curren
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"debts" | "balances">("debts");
 
-  const loadSettlement = () => {
+  // 多幣別支援
+  const [currencies, setCurrencies] = useState<string[]>([]);
+  const [exchangeRates, setExchangeRates] = useState<Record<string, string>>({}); // string 方便輸入框編輯
+  const [ratesConfirmed, setRatesConfirmed] = useState(false);
+
+  // 是否包含非 TWD 幣別
+  const hasMultiCurrency = currencies.some(c => c !== "TWD");
+
+  const loadSettlement = (rates?: Record<string, string>) => {
+    const numericRates: Record<string, number> = {};
+    const rateSource = rates ?? exchangeRates;
+    Object.entries(rateSource).forEach(([k, v]) => {
+      const n = parseFloat(v);
+      if (!isNaN(n) && n > 0) numericRates[k] = n;
+    });
+
     startTransition(async () => {
       try {
-        const result = await getWalletSettlement(walletId);
+        const result = await getWalletSettlement(walletId, numericRates);
         setBalances(result.balances);
         setDebts(result.debts);
+        if (result.currencies.length > 0) {
+          setCurrencies(result.currencies);
+          // 首次載入時，對於非 TWD 幣別预就定義常見預設巧率
+          setExchangeRates(prev => {
+            const next = { ...prev };
+            result.currencies.forEach(c => {
+              if (c !== "TWD" && !next[c]) {
+                // 預設巧率參考常見幣別
+                const defaults: Record<string, string> = { JPY: "0.22", USD: "32", EUR: "35", HKD: "4.1", CNY: "4.4", KRW: "0.024", GBP: "40" };
+                next[c] = defaults[c] || "1";
+              }
+            });
+            return next;
+          });
+        }
+        if (!hasMultiCurrency || ratesConfirmed) setRatesConfirmed(true);
       } catch (e: any) {
         setError(e.message || "載入失敗，請稍後再試");
       }
@@ -238,6 +269,63 @@ export default function SettlementModal({ walletId, walletName, familyId, curren
             </button>
           ))}
         </div>
+
+        {/* 幣別匯率設定區 (遇到非 TWD 幣別時顯示) */}
+        {!isPending && hasMultiCurrency && !ratesConfirmed && (
+          <div className="px-5 pb-4">
+            <div className="p-4 rounded-2xl" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)" }}>
+              <p className="text-sm font-bold mb-1" style={{ color: "#d97706" }}>⚠️ 偵測到多幣別交易</p>
+              <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>
+                此帳簿包含非台幣交易，請輸入各幣別的匯率（1 外幣 = ? 台幣）：
+              </p>
+              <div className="flex flex-col gap-2 mb-3">
+                {currencies.filter(c => c !== "TWD").map(c => (
+                  <div key={c} className="flex items-center gap-2">
+                    <span className="text-xs font-bold w-12 text-center py-1.5 rounded-lg" style={{ background: "rgba(245,158,11,0.15)", color: "#d97706" }}>{c}</span>
+                    <span className="text-xs" style={{ color: "var(--text-muted)" }}>1 {c} =</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={exchangeRates[c] || ""}
+                      onChange={e => setExchangeRates(r => ({ ...r, [c]: e.target.value }))}
+                      className="flex-1 px-3 py-1.5 rounded-lg text-sm font-bold outline-none text-center"
+                      style={{ background: "var(--bg-surface)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+                      placeholder="匯率"
+                    />
+                    <span className="text-xs font-bold" style={{ color: "var(--text-muted)" }}>TWD</span>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => { setRatesConfirmed(true); loadSettlement(exchangeRates); }}
+                className="w-full py-2.5 rounded-xl text-sm font-bold transition-all active:scale-95"
+                style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1", border: "1px solid rgba(99,102,241,0.3)" }}
+              >
+                確認匯率，開始結算
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 已確認匯率後可重新設定 */}
+        {!isPending && hasMultiCurrency && ratesConfirmed && (
+          <div className="px-5 pb-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {currencies.filter(c => c !== "TWD").map(c => (
+                <span key={c} className="text-[10px] px-2 py-1 rounded-lg" style={{ background: "rgba(99,102,241,0.08)", color: "#6366f1" }}>
+                  1 {c} = {exchangeRates[c]} TWD
+                </span>
+              ))}
+              <button
+                onClick={() => setRatesConfirmed(false)}
+                className="text-[10px] px-2 py-1 rounded-lg ml-auto"
+                style={{ color: "var(--text-muted)", background: "var(--bg-card)", border: "1px solid var(--border)" }}
+              >
+                修改匯率
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* 內容區 (可滾動) */}
         <div className="flex-1 overflow-y-auto px-5 pb-8">

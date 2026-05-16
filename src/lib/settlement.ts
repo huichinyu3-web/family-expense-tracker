@@ -20,6 +20,7 @@ export interface Transaction {
   type: "INCOME" | "EXPENSE";
   paidByUserId?: string | null;
   userId: string;
+  currency?: string; // 交易幣別，預設 TWD
 }
 
 export interface SettlementDebt {
@@ -42,35 +43,49 @@ export interface NetBalance {
 }
 
 /**
- * 主函式：計算結算路徑
- * 
+ * 主函式：計算結算路徑（支援多幣別）
+ *
  * @param transactions 帳簿內所有 EXPENSE 交易
  * @param members 帳簿內所有成員
- * @returns { balances, debts } - 每人的淨餘額 + 最少次數的還款路徑
+ * @param exchangeRates 幣別對基準幣（1 外幣 = N 基準幣），缺省 TWD=1
+ *   如 { JPY: 0.22, USD: 32.5, TWD: 1 }
+ * @returns { balances, debts, currencies } — 每人的淨餘額 + 最少次數的還款路徑 + 帳簿內出現的幣別列表
  */
 export function calculateSettlement(
   transactions: Transaction[],
-  members: Member[]
-): { balances: NetBalance[]; debts: SettlementDebt[] } {
+  members: Member[],
+  exchangeRates: Record<string, number> = {}
+): { balances: NetBalance[]; debts: SettlementDebt[]; currencies: string[] } {
   
-  if (members.length === 0) return { balances: [], debts: [] };
+  if (members.length === 0) return { balances: [], debts: [], currencies: [] };
 
   const memberCount = members.length;
   const memberMap = new Map(members.map(m => [m.userId, m]));
 
-  // 步驟 1：計算「總支出」和「每人的代墊金額」
-  const expenseTxs = transactions.filter(t => t.type === "EXPENSE");
-  const totalExpense = expenseTxs.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+  // 所有預設幣別（TWD）匯率為 1。若是其他幣別，必須在 exchangeRates 中對應
+  const getRate = (currency: string) => {
+    if (!currency || currency === "TWD") return 1;
+    return exchangeRates[currency] ?? 1; // 如果沒有提供匯率，暴力當作 1:1 （使用者應設定）
+  };
 
-  // 每人應分擔的均等金額
+  // 帳簿內出現的所有幣別
+  const expenseTxs = transactions.filter(t => t.type === "EXPENSE");
+  const currencies = Array.from(new Set(expenseTxs.map(t => t.currency || "TWD")));
+  // 轉換為基準幣（TWD）再累算
+  const totalExpense = expenseTxs.reduce((sum, t) => {
+    return sum + Math.abs(t.amount) * getRate(t.currency || "TWD");
+  }, 0);
+
+  // 每人應分擔的均等金額（TWD）
   const sharePerPerson = memberCount > 0 ? totalExpense / memberCount : 0;
 
-  // 統計每人「實際代墊」的金額 (以 paidByUserId 為準，若沒填則以 userId 代替)
+  // 統計每人「實際代墊」的金額 (TWD)
   const paidMap = new Map<string, number>(members.map(m => [m.userId, 0]));
   expenseTxs.forEach(tx => {
     const payer = tx.paidByUserId || tx.userId;
     if (paidMap.has(payer)) {
-      paidMap.set(payer, (paidMap.get(payer) || 0) + Math.abs(tx.amount));
+      const amountTWD = Math.abs(tx.amount) * getRate(tx.currency || "TWD");
+      paidMap.set(payer, (paidMap.get(payer) || 0) + amountTWD);
     }
   });
 
@@ -123,5 +138,5 @@ export function calculateSettlement(
     debtor.balance += amount;
   }
 
-  return { balances, debts };
+  return { balances, debts, currencies };
 }

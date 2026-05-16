@@ -11,8 +11,12 @@ import { calculateSettlement, Member, Transaction as SettlementTx } from "@/lib/
 /**
  * 取得指定帳簿的結算資料
  * - 回傳該帳簿成員的淨餘額列表，以及最少次數還款路徑
+ * @param exchangeRates 外幣對 TWD 巧率，例如 { JPY: 0.22, USD: 32 }
  */
-export async function getWalletSettlement(walletId: string) {
+export async function getWalletSettlement(
+  walletId: string,
+  exchangeRates: Record<string, number> = {}
+) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
@@ -62,9 +66,10 @@ export async function getWalletSettlement(walletId: string) {
       type: t.type as "INCOME" | "EXPENSE",
       paidByUserId: t.paidByUserId,
       userId: t.userId,
+      currency: t.currency || "TWD",
     }));
 
-    return calculateSettlement(settlementTxs, members);
+    return calculateSettlement(settlementTxs, members, exchangeRates);
 
   } else {
     // CUSTOM / PERSONAL 帳簿：只有 wallet_members 裡的人 + 擁有者
@@ -118,9 +123,10 @@ export async function getWalletSettlement(walletId: string) {
       type: t.type as "INCOME" | "EXPENSE",
       paidByUserId: t.paidByUserId,
       userId: t.userId,
+      currency: t.currency || "TWD",
     }));
 
-    return calculateSettlement(settlementTxs, members);
+    return calculateSettlement(settlementTxs, members, exchangeRates);
   }
 }
 
