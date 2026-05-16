@@ -3,12 +3,14 @@
 import { useEffect, useState, useTransition } from "react";
 import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
 import { getInvitationByToken, acceptInvitation } from "@/app/actions/invitation";
-import { Users, Clock, CheckCircle, XCircle, LogIn } from "lucide-react";
+import { Users, Clock, CheckCircle, XCircle, LogIn, RefreshCw } from "lucide-react";
 
 export default function JoinClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session } = useSession();
   const token = searchParams.get("token") ?? "";
 
   const [inviteInfo, setInviteInfo] = useState<any>(null);
@@ -131,22 +133,32 @@ export default function JoinClient() {
           <p className="text-xs text-red-400 text-center mb-3">{errorMsg}</p>
         )}
 
-        {errorMsg === "請先登入再接受邀請" ? (
+        {errorMsg === "請先登入再接受邀請" || (!session && !errorMsg) ? (
           <motion.button
             whileTap={{ scale: 0.97 }} onClick={() => router.push(`/login?callbackUrl=/join?token=${token}`)}
             className="w-full h-12 rounded-2xl font-semibold text-sm text-white flex items-center justify-center gap-2"
             style={{ background: "var(--gradient-primary)" }}>
             <LogIn size={16} />
-            前往登入
+            請先登入
           </motion.button>
         ) : (
-          <motion.button
-            whileTap={{ scale: 0.97 }} onClick={handleAccept} disabled={pending}
-            className="w-full h-12 rounded-2xl font-semibold text-sm text-white flex items-center justify-center gap-2"
-            style={{ background: "var(--gradient-primary)" }}>
-            <LogIn size={16} />
-            {pending ? "加入中..." : "接受邀請並加入家庭"}
-          </motion.button>
+          <>
+            <motion.button
+              whileTap={{ scale: 0.97 }} onClick={handleAccept} disabled={pending}
+              className="w-full h-12 rounded-2xl font-semibold text-sm text-white flex items-center justify-center gap-2 mb-3"
+              style={{ background: "var(--gradient-primary)" }}>
+              <LogIn size={16} />
+              {pending ? "加入中..." : "接受邀請並加入家庭"}
+            </motion.button>
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={() => signOut({ callbackUrl: `/login?callbackUrl=/join?token=${token}` })}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-medium"
+              style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
+              <RefreshCw size={15} />
+              切換帳號 (目前為 {session?.user?.name || "未知"})
+            </motion.button>
+          </>
         )}
         
         <button onClick={() => router.push("/")} className="w-full mt-3 text-xs text-center py-2" style={{ color: "var(--text-muted)" }}>

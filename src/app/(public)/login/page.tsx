@@ -55,7 +55,7 @@ function LoginClient() {
           </motion.button>
 
           <motion.button whileTap={{ scale: 0.97 }}
-            onClick={() => signOut({ callbackUrl: "/login" })}
+            onClick={() => signOut({ callbackUrl: `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` })}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium"
             style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
             <RefreshCw size={15} />
