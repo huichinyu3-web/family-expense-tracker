@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import {
   Fingerprint, Shield, ShieldAlert, ChevronRight, Users, Bell,
   Trash2, LogOut, Moon, Globe, Key, Plus, Wallet,
-  Tag, X, ChevronDown, ChevronUp, Eye, EyeOff
+  Tag, X, ChevronDown, ChevronUp, Eye, EyeOff, Check
 } from "lucide-react";
 import { createWallet, deleteWallet } from "@/app/actions/wallet";
 import { createParentCategory, createChildCategory, toggleCategoryVisibility, deleteCategory } from "@/app/actions/category";
@@ -134,21 +134,26 @@ function AddWalletSheet({ onClose, onDone, familyRole, familyMembers }: { onClos
         {visibility === "CUSTOM" && (
           <div className="mb-6 p-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)]">
             <label className="block text-xs font-bold mb-2" style={{ color: "var(--text-primary)" }}>選擇要共享的成員</label>
-            <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
-              {familyMembers.map(m => (
-                <label key={m.userId} className="flex items-center gap-3 p-2 rounded-lg hover:bg-[var(--bg-surface)] cursor-pointer">
-                  <input type="checkbox" checked={selectedMembers.includes(m.userId)} 
-                    onChange={(e) => {
-                      if (e.target.checked) setSelectedMembers(prev => [...prev, m.userId]);
-                      else setSelectedMembers(prev => prev.filter(id => id !== m.userId));
-                    }} 
-                    className="w-4 h-4 accent-indigo-500" />
-                  <div className="w-6 h-6 rounded-full overflow-hidden bg-indigo-500/20 flex items-center justify-center flex-shrink-0">
-                    {m.user?.image ? <img src={m.user.image} alt="avatar" /> : <span className="text-xs">😊</span>}
+            <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+              {familyMembers.map(m => {
+                const isSelected = selectedMembers.includes(m.userId);
+                return (
+                  <div key={m.userId} 
+                    onClick={() => {
+                      if (isSelected) setSelectedMembers(prev => prev.filter(id => id !== m.userId));
+                      else setSelectedMembers(prev => [...prev, m.userId]);
+                    }}
+                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-[var(--bg-surface)] cursor-pointer">
+                    <div className={`w-5 h-5 flex-shrink-0 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-500 border-indigo-500' : 'border-[var(--border)]'}`}>
+                      {isSelected && <Check size={14} color="#fff" />}
+                    </div>
+                    <div className="w-8 h-8 rounded-full overflow-hidden bg-indigo-500/20 flex items-center justify-center flex-shrink-0">
+                      {m.user?.image ? <img src={m.user.image} alt="avatar" /> : <span className="text-xs">😊</span>}
+                    </div>
+                    <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{m.user?.name || "未知成員"}</span>
                   </div>
-                  <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{m.user?.name || "未知成員"}</span>
-                </label>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

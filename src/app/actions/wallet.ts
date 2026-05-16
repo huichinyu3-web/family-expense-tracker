@@ -48,6 +48,9 @@ export async function getAccessibleWallets() {
 
   // 過濾出該使用者有權限的帳戶
   const accessible = allWallets.filter((w) => {
+    // 擁有者或管理員擁有最高權限，可看到並管理所有帳簿
+    if (membership.role === "OWNER" || membership.role === "ADMIN") return true;
+
     if (w.visibility === "FAMILY") return true;
     if (w.visibility === "PERSONAL") return w.ownerId === userId;
     if (w.visibility === "CUSTOM") {
@@ -172,12 +175,22 @@ export async function deleteWallet(walletId: string, force = false) {
   });
   if (!wallet) throw new Error("Wallet not found");
 
-  if (wallet.visibility === "FAMILY") {
-    const myMember = await db.query.familyMembers.findFirst({
-      where: and(eq(familyMembers.userId, session.user.id), eq(familyMembers.familyId, wallet.familyId))
-    });
-    if (myMember?.role !== "OWNER" && myMember?.role !== "ADMIN") {
+  const myMember = await db.query.familyMembers.findFirst({
+    where: and(eq(familyMembers.userId, session.user.id), eq(familyMembers.familyId, wallet.familyId))
+  });
+  const isAdmin = myMember?.role === "OWNER" || myMember?.role === "ADMIN";
+
+  if (!isAdmin) {
+    if (wallet.visibility === "FAMILY") {
       throw new Error("Only OWNER or ADMIN can delete FAMILY wallets.");
+    }
+    if (wallet.visibility === "PERSONAL" && wallet.ownerId !== session.user.id) {
+      throw new Error("You can only delete your own PERSONAL wallets.");
+    }
+    if (wallet.visibility === "CUSTOM") {
+      // 若為 CUSTOM 帳簿且非管理員，檢查是否為創建者（或目前暫不允許一般成員刪除 CUSTOM，需請管理員協助）
+      // 這裡採用嚴格限制：一般成員無權刪除 CUSTOM 帳簿
+      throw new Error("Only OWNER or ADMIN can delete CUSTOM wallets.");
     }
   }
 
