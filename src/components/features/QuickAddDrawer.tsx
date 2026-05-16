@@ -375,7 +375,7 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
                   style={{ color: "var(--text-muted)" }}
                 >
                   {COMMON_CURRENCIES.map(c => (
-                    <option key={c.code} value={c.code}>{c.code}</option>
+                    <option key={c.code} value={c.code}>{c.label}</option>
                   ))}
                 </select>
                 <span className="font-bold tabular-nums tracking-tight truncate"
