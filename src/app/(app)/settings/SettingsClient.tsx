@@ -53,7 +53,7 @@ function AddWalletSheet({ onClose, onDone, familyRole, familyMembers }: { onClos
   const [name, setName] = useState("");
   const [type, setType] = useState<"CASH"|"BANK"|"CREDIT_CARD"|"E_WALLET"|"OTHER">("CASH");
   const [visibility, setVisibility] = useState<"PERSONAL"|"FAMILY"|"CUSTOM">("FAMILY");
-  const [initialBalance, setInitialBalance] = useState("0");
+  const [initialBalance, setInitialBalance] = useState("");
   const [currency, setCurrency] = useState("TWD");
   const [isSplitEnabled, setIsSplitEnabled] = useState(false);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
