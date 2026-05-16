@@ -58,7 +58,7 @@ export async function getWalletSettlement(
     // 4. 取得帳簿所有支出交易
     const txs = await db.query.transactions.findMany({
       where: eq(transactions.walletId, walletId),
-      columns: { amount: true, type: true, paidByUserId: true, userId: true },
+      columns: { amount: true, type: true, paidByUserId: true, userId: true, currency: true },
     });
 
     const settlementTxs: SettlementTx[] = txs.map(t => ({
@@ -115,7 +115,7 @@ export async function getWalletSettlement(
     // 取得帳簿所有交易
     const txs = await db.query.transactions.findMany({
       where: eq(transactions.walletId, walletId),
-      columns: { amount: true, type: true, paidByUserId: true, userId: true },
+      columns: { amount: true, type: true, paidByUserId: true, userId: true, currency: true },
     });
 
     const settlementTxs: SettlementTx[] = txs.map(t => ({
