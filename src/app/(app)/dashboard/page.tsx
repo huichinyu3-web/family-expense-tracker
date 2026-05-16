@@ -1,7 +1,8 @@
 import { auth } from "@/lib/auth";
 import { getTransactions } from "@/app/actions/transaction";
+import { getAccessibleWallets } from "@/app/actions/wallet";
 import { db } from "@/lib/db";
-import { familyMembers, families } from "@/lib/db/schema";
+import { familyMembers } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import DashboardClient from "./DashboardClient";
 
@@ -22,10 +23,12 @@ export default async function DashboardPage() {
   });
 
   const transactions = await getTransactions();
+  const wallets = await getAccessibleWallets();
 
   return (
     <DashboardClient 
       transactions={transactions} 
+      wallets={wallets}
       currentUserId={userId}
       userName={session?.user?.name || "使用者"}
       familyName={membership?.family?.name || "我的家庭"}

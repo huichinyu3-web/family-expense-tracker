@@ -35,13 +35,14 @@ function Avatar({ initial, colorId }: { initial: string; colorId: string }) {
 }
 
 // @ts-ignore
-export default function DashboardClient({ transactions, currentUserId, userName, familyName }) {
+export default function DashboardClient({ transactions, wallets, currentUserId, userName, familyName }) {
   const now = new Date();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [monthIdx, setMonthIdx] = useState(now.getMonth());
   const [year, setYear] = useState(now.getFullYear());
   const [view, setView] = useState<"MY" | "FAMILY">("FAMILY");
+  const [selectedWalletId, setSelectedWalletId] = useState<string>("ALL");
   const [selectedTx, setSelectedTx] = useState<any>(null);
   const [editTxData, setEditTxData] = useState<any>(null);
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
@@ -61,28 +62,38 @@ export default function DashboardClient({ transactions, currentUserId, userName,
     });
   };
 
-  // 過濾資料 (依據月份與視角)
+  // 過濾資料 (依據月份、視角、帳簿)
   const filteredTx = useMemo(() => {
     return transactions.filter((tx: any) => {
       const d = new Date(tx.date);
       const isSameMonth = d.getMonth() === monthIdx && d.getFullYear() === year;
       // 我的視角：只看我自己建立的
       const matchView = view === "FAMILY" || tx.userId === currentUserId;
-      return isSameMonth && matchView;
+      // 帳簿過濾
+      const matchWallet = selectedWalletId === "ALL" || tx.walletId === selectedWalletId;
+      return isSameMonth && matchView && matchWallet;
     });
-  }, [transactions, monthIdx, year, view, currentUserId]);
+  }, [transactions, monthIdx, year, view, currentUserId, selectedWalletId]);
 
   const totalExpense = filteredTx.filter((tx: any) => tx.type === "EXPENSE").reduce((sum: number, tx: any) => sum + Math.abs(tx.amount), 0);
   const totalIncome = filteredTx.filter((tx: any) => tx.type === "INCOME").reduce((sum: number, tx: any) => sum + tx.amount, 0);
   
-  // 簡單寫死預算 (未來可開放在設定調整)
+  const selectedWallet = selectedWalletId === "ALL" ? null : wallets.find((w: any) => w.id === selectedWalletId);
+  
+  // 計算顯示的餘額或預算
+  // 如果選了特定帳簿，中心顯示「該帳簿當前總餘額」
+  // 如果是全部，則顯示簡易預算剩餘（Mock）
   const MOCK_BUDGET = view === "FAMILY" ? 50000 : 20000;
-  const spentPct = Math.min((totalExpense / MOCK_BUDGET) * 100, 100) || 0;
-  const remaining = MOCK_BUDGET - totalExpense;
+  const currentBalance = selectedWallet ? selectedWallet.balance : (MOCK_BUDGET - totalExpense);
+  const spentPct = selectedWallet ? 0 : Math.min((totalExpense / MOCK_BUDGET) * 100, 100) || 0;
 
-  const CHART_DATA = [
+  // 圓餅圖：如果是單一帳簿，顯示本月的收入與支出比例，如果是全部，顯示預算與已花費
+  const CHART_DATA = selectedWallet ? [
+    { name: "本月支出", value: totalExpense },
+    { name: "本月收入", value: totalIncome || 1 }, // 避免 0 造成無法繪製
+  ] : [
     { name: "已花費", value: totalExpense },
-    { name: "剩餘",   value: Math.max(remaining, 0) },
+    { name: "剩餘預算", value: Math.max(currentBalance, 0) },
   ];
 
   const recentTx = filteredTx.slice(0, 5);
@@ -130,7 +141,7 @@ export default function DashboardClient({ transactions, currentUserId, userName,
       </div>
 
       {/* ── 月份選擇器 ── */}
-      <div className="flex items-center justify-center gap-4 mb-6">
+      <div className="flex items-center justify-center gap-4 mb-4">
         <button onClick={prevMonth}
           className="w-7 h-7 rounded-full flex items-center justify-center"
           style={{ background: "var(--bg-card)" }}>
@@ -144,6 +155,30 @@ export default function DashboardClient({ transactions, currentUserId, userName,
           style={{ background: "var(--bg-card)" }}>
           <ChevronRight size={14} style={{ color: "var(--text-secondary)" }} />
         </button>
+      </div>
+
+      {/* ── 帳簿過濾選擇器 ── */}
+      <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2 mb-4">
+        <button onClick={() => setSelectedWalletId("ALL")}
+          className="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all"
+          style={{
+            background: selectedWalletId === "ALL" ? "rgba(99,102,241,0.15)" : "var(--bg-card)",
+            color: selectedWalletId === "ALL" ? "#6366f1" : "var(--text-secondary)",
+            border: selectedWalletId === "ALL" ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
+          }}>
+          📊 全部總覽
+        </button>
+        {wallets.map((w: any) => (
+          <button key={w.id} onClick={() => setSelectedWalletId(w.id)}
+            className="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+            style={{
+              background: selectedWalletId === w.id ? "rgba(16,185,129,0.15)" : "var(--bg-card)",
+              color: selectedWalletId === w.id ? "#10b981" : "var(--text-secondary)",
+              border: selectedWalletId === w.id ? "1px solid rgba(16,185,129,0.4)" : "1px solid var(--border)",
+            }}>
+            <span>{w.name}</span>
+          </button>
+        ))}
       </div>
 
       {/* ── 核心視覺：預算甜甜圈圖 ── */}
@@ -178,35 +213,53 @@ export default function DashboardClient({ transactions, currentUserId, userName,
 
           {/* 圓心文字 */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>本月剩餘</p>
+            <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>{selectedWallet ? "當前總餘額" : "本月剩餘"}</p>
             <CountUp
-              end={remaining}
+              end={currentBalance}
               prefix="NT$"
               duration={1400}
               className="text-2xl font-bold"
-              style={{ color: remaining > 0 ? "#10b981" : "#f43f5e" }}
+              style={{ color: currentBalance >= 0 ? "#10b981" : "#f43f5e" }}
             />
-            <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-              已用 {spentPct.toFixed(0)}%
-            </p>
+            {!selectedWallet && (
+              <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                已用 {spentPct.toFixed(0)}%
+              </p>
+            )}
           </div>
         </div>
 
-        {/* 預算進度條 */}
+        {/* 預算或收支進度條 */}
         <div className="mt-4">
           <div className="flex justify-between text-xs mb-2" style={{ color: "var(--text-muted)" }}>
-            <span>已花費 NT${totalExpense.toLocaleString()}</span>
-            <span>預算 NT${MOCK_BUDGET.toLocaleString()}</span>
+            <span>{selectedWallet ? "本月支出" : "已花費"} NT${totalExpense.toLocaleString()}</span>
+            <span>{selectedWallet ? "本月收入" : "預算"} NT${(selectedWallet ? totalIncome : MOCK_BUDGET).toLocaleString()}</span>
           </div>
-          <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-card)" }}>
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${spentPct}%` }}
-              transition={{ duration: 1, ease: "easeOut" }}
-              className="h-full rounded-full"
-              style={{ background: "var(--gradient-primary)" }}
-            />
-          </div>
+          {!selectedWallet && (
+            <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-card)" }}>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${spentPct}%` }}
+                transition={{ duration: 1, ease: "easeOut" }}
+                className="h-full rounded-full"
+                style={{ background: "var(--gradient-primary)" }}
+              />
+            </div>
+          )}
+          {selectedWallet && (
+            <div className="flex h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-card)" }}>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${totalExpense === 0 && totalIncome === 0 ? 0 : (totalExpense / (totalExpense + totalIncome) * 100)}%` }}
+                className="h-full bg-rose-500"
+              />
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${totalExpense === 0 && totalIncome === 0 ? 0 : (totalIncome / (totalExpense + totalIncome) * 100)}%` }}
+                className="h-full bg-emerald-500"
+              />
+            </div>
+          )}
         </div>
       </motion.div>
 
