@@ -12,6 +12,7 @@ import QuickAddDrawer from "@/components/features/QuickAddDrawer";
 
 const CHART_COLORS = ["#6366f1", "#1c1c27"];
 const MONTHS = ["一月","二月","三月","四月","五月","六月","七月","八月","九月","十月","十一月","十二月"];
+const TYPES    = ["全部", "支出", "收入"];
 
 function AnimatedAmount({ value, isIncome = false }: { value: number; isIncome?: boolean }) {
   const color = isIncome ? "#10b981" : value < 0 ? "#f43f5e" : "var(--text-primary)";
@@ -47,6 +48,22 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
   const [editTxData, setEditTxData] = useState<any>(null);
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
 
+  // 進階篩選狀態
+  const [showFilter, setShowFilter] = useState(false);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("全部");
+  const [merchantFilter, setMerchantFilter] = useState("全部");
+  const [minAmount, setMinAmount] = useState("");
+  const [maxAmount, setMaxAmount] = useState("");
+  const [member, setMember] = useState("全部");
+  const [typeFilter, setTypeFilter] = useState("全部");
+
+  // 動態提取選項
+  const MEMBERS = ["全部", ...Array.from(new Set(transactions.map((t:any) => t.user?.name).filter(Boolean)))];
+  const CATEGORIES = ["全部", ...Array.from(new Set(transactions.map((t:any) => t.category?.name).filter(Boolean)))];
+  const MERCHANTS = ["全部", ...Array.from(new Set(transactions.map((t:any) => t.merchant?.name).filter(Boolean)))];
+
   // 當選擇特定帳簿時，將 ID 寫入 localStorage 供 QuickAddDrawer 讀取
   const handleWalletSelect = (id: string) => {
     setSelectedWalletId(id);
@@ -68,18 +85,36 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
     });
   };
 
-  // 過濾資料 (依據月份、視角、帳簿)
+  // 過濾資料 (依據月份、視角、帳簿、進階過濾器)
   const filteredTx = useMemo(() => {
     return transactions.filter((tx: any) => {
-      const d = new Date(tx.date);
-      const isSameMonth = d.getMonth() === monthIdx && d.getFullYear() === year;
-      // 我的視角：只看我自己建立的
+      const txDateObj = new Date(tx.date);
+      // 月份過濾 (如果沒有設定特定日期區間，才套用月份過濾)
+      const isSameMonth = (startDate || endDate) ? true : (txDateObj.getMonth() === monthIdx && txDateObj.getFullYear() === year);
+      
       const matchView = view === "FAMILY" || tx.userId === currentUserId;
-      // 帳簿過濾
       const matchWallet = selectedWalletId === "ALL" || tx.walletId === selectedWalletId;
-      return isSameMonth && matchView && matchWallet;
+      
+      const matchMember = member === "全部" || tx.user?.name === member;
+      const matchType   = typeFilter === "全部"
+        || (typeFilter === "支出" && tx.type === "EXPENSE")
+        || (typeFilter === "收入" && tx.type === "INCOME");
+      const matchCat    = categoryFilter === "全部" || tx.category?.name === categoryFilter;
+      const matchMerch  = merchantFilter === "全部" || tx.merchant?.name === merchantFilter;
+      
+      // 金額範圍
+      const amt = Math.abs(tx.amount);
+      const matchMin = minAmount ? amt >= Number(minAmount) : true;
+      const matchMax = maxAmount ? amt <= Number(maxAmount) : true;
+
+      // 日期範圍
+      const txDateStr = txDateObj.toISOString().split("T")[0];
+      const matchStart = startDate ? txDateStr >= startDate : true;
+      const matchEnd   = endDate ? txDateStr <= endDate : true;
+
+      return isSameMonth && matchView && matchWallet && matchMember && matchType && matchCat && matchMerch && matchMin && matchMax && matchStart && matchEnd;
     });
-  }, [transactions, monthIdx, year, view, currentUserId, selectedWalletId]);
+  }, [transactions, monthIdx, year, view, currentUserId, selectedWalletId, member, typeFilter, categoryFilter, merchantFilter, minAmount, maxAmount, startDate, endDate]);
 
   const totalExpense = filteredTx.filter((tx: any) => tx.type === "EXPENSE").reduce((sum: number, tx: any) => sum + Math.abs(tx.amount), 0);
   const totalIncome = filteredTx.filter((tx: any) => tx.type === "INCOME").reduce((sum: number, tx: any) => sum + tx.amount, 0);
@@ -140,26 +175,158 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
           </h1>
         </div>
         
-        {/* 視角切換器 */}
-        <div className="flex bg-[var(--bg-card)] rounded-xl p-1 border border-[var(--border)]">
-          <button onClick={() => setView("MY")}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+        {/* 視角切換器與過濾按鈕 */}
+        <div className="flex gap-2">
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={() => setShowFilter(!showFilter)}
+            className="px-2.5 py-1.5 rounded-lg flex items-center justify-center transition-all"
             style={{
-              background: view === "MY" ? "rgba(99,102,241,0.15)" : "transparent",
-              color: view === "MY" ? "#6366f1" : "var(--text-muted)",
-            }}>
-            <User size={12} /> 我的
-          </button>
-          <button onClick={() => setView("FAMILY")}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-            style={{
-              background: view === "FAMILY" ? "rgba(99,102,241,0.15)" : "transparent",
-              color: view === "FAMILY" ? "#6366f1" : "var(--text-muted)",
-            }}>
-            <Users size={12} /> 全家
-          </button>
+              background: showFilter ? "rgba(99,102,241,0.15)" : "var(--bg-card)",
+              color: showFilter ? "#6366f1" : "var(--text-muted)",
+              border: showFilter ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
+            }}
+          >
+            <SlidersHorizontal size={14} />
+          </motion.button>
+          
+          <div className="flex bg-[var(--bg-card)] rounded-xl p-1 border border-[var(--border)]">
+            <button onClick={() => setView("MY")}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+              style={{
+                background: view === "MY" ? "rgba(99,102,241,0.15)" : "transparent",
+                color: view === "MY" ? "#6366f1" : "var(--text-muted)",
+              }}>
+              <User size={12} /> 我的
+            </button>
+            <button onClick={() => setView("FAMILY")}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+              style={{
+                background: view === "FAMILY" ? "rgba(99,102,241,0.15)" : "transparent",
+                color: view === "FAMILY" ? "#6366f1" : "var(--text-muted)",
+              }}>
+              <Users size={12} /> 全家
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* ── 進階篩選面板 ── */}
+      <AnimatePresence>
+      {showFilter && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          className="glass-card p-4 mb-4 overflow-hidden"
+        >
+          {/* 日期範圍 */}
+          <div className="mb-4">
+            <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>日期範圍</p>
+            <div className="flex gap-2 items-center">
+              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+                className="flex-1 px-3 py-1.5 rounded-lg text-xs outline-none bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)]" />
+              <span className="text-[var(--text-muted)]">-</span>
+              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+                className="flex-1 px-3 py-1.5 rounded-lg text-xs outline-none bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)]" />
+            </div>
+          </div>
+
+          {/* 成員 */}
+          {view === "FAMILY" && (
+            <>
+              <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>成員</p>
+              <div className="flex gap-2 mb-4 overflow-x-auto custom-scrollbar pb-1">
+                {(MEMBERS as string[]).map(m => (
+                  <button key={m} onClick={() => setMember(m)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex-shrink-0"
+                    style={{
+                      background: member === m ? "rgba(99,102,241,0.2)" : "var(--bg-card)",
+                      color: member === m ? "#6366f1" : "var(--text-secondary)",
+                      border: member === m ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
+                    }}>
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* 分類 */}
+          <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>分類</p>
+          <div className="flex gap-2 mb-4 overflow-x-auto custom-scrollbar pb-1">
+            {(CATEGORIES as string[]).map(c => (
+              <button key={c} onClick={() => setCategoryFilter(c)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex-shrink-0"
+                style={{
+                  background: categoryFilter === c ? "rgba(99,102,241,0.2)" : "var(--bg-card)",
+                  color: categoryFilter === c ? "#6366f1" : "var(--text-secondary)",
+                  border: categoryFilter === c ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
+                }}>
+                {c}
+              </button>
+            ))}
+          </div>
+
+          {/* 商家 */}
+          <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>商家</p>
+          <div className="flex gap-2 mb-4 overflow-x-auto custom-scrollbar pb-1">
+            {(MERCHANTS as string[]).map(m => (
+              <button key={m} onClick={() => setMerchantFilter(m)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex-shrink-0"
+                style={{
+                  background: merchantFilter === m ? "rgba(99,102,241,0.2)" : "var(--bg-card)",
+                  color: merchantFilter === m ? "#6366f1" : "var(--text-secondary)",
+                  border: merchantFilter === m ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
+                }}>
+                {m}
+              </button>
+            ))}
+          </div>
+
+          {/* 收支類型與金額 */}
+          <div className="flex flex-wrap gap-4 mb-4">
+            <div className="flex-1">
+              <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>收支類型</p>
+              <div className="flex gap-2">
+                {TYPES.map(t => (
+                  <button key={t} onClick={() => setTypeFilter(t)}
+                    className="flex-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                    style={{
+                      background: typeFilter === t ? "rgba(99,102,241,0.2)" : "var(--bg-card)",
+                      color: typeFilter === t ? "#6366f1" : "var(--text-secondary)",
+                      border: typeFilter === t ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
+                    }}>
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <div className="flex-1">
+              <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>金額範圍</p>
+              <div className="flex gap-2 items-center">
+                <input type="number" placeholder="最低" value={minAmount} onChange={e => setMinAmount(e.target.value)}
+                  className="w-full px-2 py-1.5 rounded-lg text-xs outline-none bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)] text-center" />
+                <span className="text-[var(--text-muted)]">-</span>
+                <input type="number" placeholder="最高" value={maxAmount} onChange={e => setMaxAmount(e.target.value)}
+                  className="w-full px-2 py-1.5 rounded-lg text-xs outline-none bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)] text-center" />
+              </div>
+            </div>
+          </div>
+
+          {/* 清除按鈕 */}
+          <div className="flex justify-end pt-2 border-t border-[var(--border)] mt-2">
+            <button onClick={() => {
+              setStartDate(""); setEndDate(""); setMember("全部"); setCategoryFilter("全部"); 
+              setMerchantFilter("全部"); setTypeFilter("全部"); setMinAmount(""); setMaxAmount("");
+            }} className="text-xs font-bold text-rose-500 bg-rose-500/10 px-4 py-2 rounded-lg">
+              清除所有篩選
+            </button>
+          </div>
+        </motion.div>
+      )}
+      </AnimatePresence>
 
       {/* ── 月份選擇器 ── */}
       <div className="flex items-center justify-center gap-4 mb-4">

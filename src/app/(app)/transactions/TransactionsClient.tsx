@@ -11,7 +11,6 @@ const WALLET_ICONS: Record<string, string> = {
   CASH: "💵", BANK: "🏦", CREDIT_CARD: "💳", E_WALLET: "📱", OTHER: "💰"
 };
 
-const MEMBERS  = ["全部", "小明", "小花"]; // 未來這也要動態讀取
 const TYPES    = ["全部", "支出", "收入"];
 
 function Avatar({ initial, colorId }: { initial: string; colorId: string }) {
@@ -50,8 +49,21 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
   const [search, setSearch]       = useState("");
   const [member, setMember]       = useState("全部");
   const [typeFilter, setTypeFilter] = useState("全部");
-  const [walletFilter, setWalletFilter] = useState("全部");
+  const [walletFilter, setWalletFilter] = useState("ALL");
   const [showFilter, setShowFilter] = useState(false);
+
+  // 進階篩選狀態
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("全部");
+  const [merchantFilter, setMerchantFilter] = useState("全部");
+  const [minAmount, setMinAmount] = useState("");
+  const [maxAmount, setMaxAmount] = useState("");
+
+  // 動態提取選項
+  const MEMBERS = ["全部", ...Array.from(new Set(initialData.map(t => t.user?.name).filter(Boolean)))];
+  const CATEGORIES = ["全部", ...Array.from(new Set(initialData.map(t => t.category?.name).filter(Boolean)))];
+  const MERCHANTS = ["全部", ...Array.from(new Set(initialData.map(t => t.merchant?.name).filter(Boolean)))];
 
   // 編輯與刪除狀態
   const [selectedTx, setSelectedTx] = useState<any>(null);
@@ -62,12 +74,25 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
   const filtered = initialData.filter(tx => {
     const searchTarget = `${tx.category?.name} ${tx.merchant?.name || ""} ${tx.note || ""}`;
     const matchSearch = searchTarget.includes(search);
-    const matchMember = member === "全部" || tx.user?.name === member; // 目前還沒做真動態，先簡單配
+    const matchMember = member === "全部" || tx.user?.name === member;
     const matchType   = typeFilter === "全部"
       || (typeFilter === "支出" && tx.type === "EXPENSE")
       || (typeFilter === "收入" && tx.type === "INCOME");
-    const matchWallet = walletFilter === "全部" || tx.walletId === walletFilter;
-    return matchSearch && matchMember && matchType && matchWallet;
+    const matchWallet = walletFilter === "ALL" || tx.walletId === walletFilter;
+    const matchCat    = categoryFilter === "全部" || tx.category?.name === categoryFilter;
+    const matchMerch  = merchantFilter === "全部" || tx.merchant?.name === merchantFilter;
+    
+    // 金額範圍
+    const amt = Math.abs(tx.amount);
+    const matchMin = minAmount ? amt >= Number(minAmount) : true;
+    const matchMax = maxAmount ? amt <= Number(maxAmount) : true;
+
+    // 日期範圍
+    const txDate = new Date(tx.date).toISOString().split("T")[0];
+    const matchStart = startDate ? txDate >= startDate : true;
+    const matchEnd   = endDate ? txDate <= endDate : true;
+
+    return matchSearch && matchMember && matchType && matchWallet && matchCat && matchMerch && matchMin && matchMax && matchStart && matchEnd;
   });
 
   const totalExpense = filtered.filter(t => t.type === "EXPENSE").reduce((s, t) => s + Math.abs(t.amount), 0);
@@ -91,6 +116,30 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
 
   return (
     <div className="px-4 pt-6 pb-2 max-w-lg mx-auto">
+
+      {/* ── 帳簿過濾選擇器 (仿 Dashboard) ── */}
+      <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2 mb-4">
+        <button onClick={() => setWalletFilter("ALL")}
+          className="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all"
+          style={{
+            background: walletFilter === "ALL" ? "rgba(99,102,241,0.15)" : "var(--bg-card)",
+            color: walletFilter === "ALL" ? "#6366f1" : "var(--text-secondary)",
+            border: walletFilter === "ALL" ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
+          }}>
+          📊 全部總覽
+        </button>
+        {wallets.map((w: any) => (
+          <button key={w.id} onClick={() => setWalletFilter(w.id)}
+            className="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+            style={{
+              background: walletFilter === w.id ? "rgba(16,185,129,0.15)" : "var(--bg-card)",
+              color: walletFilter === w.id ? "#10b981" : "var(--text-secondary)",
+              border: walletFilter === w.id ? "1px solid rgba(16,185,129,0.4)" : "1px solid var(--border)",
+            }}>
+            <span>{w.name}</span>
+          </button>
+        ))}
+      </div>
 
       {/* ── 頂部標題 ── */}
       <div className="flex items-center justify-between mb-4">
@@ -126,41 +175,31 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
         />
       </div>
 
-      {/* ── 篩選面板 ── */}
+      {/* ── 進階篩選面板 ── */}
       {showFilter && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: "auto" }}
-          className="glass-card p-4 mb-3 overflow-hidden"
+          className="glass-card p-4 mb-4 overflow-hidden"
         >
-          <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>帳簿</p>
-          <div className="flex gap-2 mb-3 overflow-x-auto custom-scrollbar pb-1">
-            <button onClick={() => setWalletFilter("全部")}
-              className="px-3 py-1 rounded-lg text-xs font-medium transition-all flex-shrink-0"
-              style={{
-                background: walletFilter === "全部" ? "rgba(99,102,241,0.2)" : "var(--bg-card)",
-                color: walletFilter === "全部" ? "#6366f1" : "var(--text-secondary)",
-                border: walletFilter === "全部" ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
-              }}>
-              全部
-            </button>
-            {wallets.map(w => (
-              <button key={w.id} onClick={() => setWalletFilter(w.id)}
-                className="px-3 py-1 rounded-lg text-xs font-medium transition-all flex-shrink-0"
-                style={{
-                  background: walletFilter === w.id ? "rgba(99,102,241,0.2)" : "var(--bg-card)",
-                  color: walletFilter === w.id ? "#6366f1" : "var(--text-secondary)",
-                  border: walletFilter === w.id ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
-                }}>
-                {w.name}
-              </button>
-            ))}
+          {/* 日期範圍 */}
+          <div className="mb-4">
+            <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>日期範圍</p>
+            <div className="flex gap-2 items-center">
+              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+                className="flex-1 px-3 py-1.5 rounded-lg text-xs outline-none bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)]" />
+              <span className="text-[var(--text-muted)]">-</span>
+              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+                className="flex-1 px-3 py-1.5 rounded-lg text-xs outline-none bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)]" />
+            </div>
           </div>
+
+          {/* 成員 */}
           <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>成員</p>
-          <div className="flex gap-2 mb-3 overflow-x-auto custom-scrollbar pb-1">
-            {MEMBERS.map(m => (
+          <div className="flex gap-2 mb-4 overflow-x-auto custom-scrollbar pb-1">
+            {(MEMBERS as string[]).map(m => (
               <button key={m} onClick={() => setMember(m)}
-                className="px-3 py-1 rounded-lg text-xs font-medium transition-all"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex-shrink-0"
                 style={{
                   background: member === m ? "rgba(99,102,241,0.2)" : "var(--bg-card)",
                   color: member === m ? "#6366f1" : "var(--text-secondary)",
@@ -170,19 +209,79 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
               </button>
             ))}
           </div>
-          <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>類型</p>
-          <div className="flex gap-2">
-            {TYPES.map(t => (
-              <button key={t} onClick={() => setTypeFilter(t)}
-                className="px-3 py-1 rounded-lg text-xs font-medium transition-all"
+
+          {/* 分類 */}
+          <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>分類</p>
+          <div className="flex gap-2 mb-4 overflow-x-auto custom-scrollbar pb-1">
+            {(CATEGORIES as string[]).map(c => (
+              <button key={c} onClick={() => setCategoryFilter(c)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex-shrink-0"
                 style={{
-                  background: typeFilter === t ? "rgba(99,102,241,0.2)" : "var(--bg-card)",
-                  color: typeFilter === t ? "#6366f1" : "var(--text-secondary)",
-                  border: typeFilter === t ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
+                  background: categoryFilter === c ? "rgba(99,102,241,0.2)" : "var(--bg-card)",
+                  color: categoryFilter === c ? "#6366f1" : "var(--text-secondary)",
+                  border: categoryFilter === c ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
                 }}>
-                {t}
+                {c}
               </button>
             ))}
+          </div>
+
+          {/* 商家 */}
+          <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>商家</p>
+          <div className="flex gap-2 mb-4 overflow-x-auto custom-scrollbar pb-1">
+            {(MERCHANTS as string[]).map(m => (
+              <button key={m} onClick={() => setMerchantFilter(m)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex-shrink-0"
+                style={{
+                  background: merchantFilter === m ? "rgba(99,102,241,0.2)" : "var(--bg-card)",
+                  color: merchantFilter === m ? "#6366f1" : "var(--text-secondary)",
+                  border: merchantFilter === m ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
+                }}>
+                {m}
+              </button>
+            ))}
+          </div>
+
+          {/* 收支類型 */}
+          <div className="flex flex-wrap gap-4 mb-4">
+            <div className="flex-1">
+              <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>收支類型</p>
+              <div className="flex gap-2">
+                {TYPES.map(t => (
+                  <button key={t} onClick={() => setTypeFilter(t)}
+                    className="flex-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                    style={{
+                      background: typeFilter === t ? "rgba(99,102,241,0.2)" : "var(--bg-card)",
+                      color: typeFilter === t ? "#6366f1" : "var(--text-secondary)",
+                      border: typeFilter === t ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
+                    }}>
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            {/* 金額範圍 */}
+            <div className="flex-1">
+              <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>金額範圍</p>
+              <div className="flex gap-2 items-center">
+                <input type="number" placeholder="最低" value={minAmount} onChange={e => setMinAmount(e.target.value)}
+                  className="w-full px-2 py-1.5 rounded-lg text-xs outline-none bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)] text-center" />
+                <span className="text-[var(--text-muted)]">-</span>
+                <input type="number" placeholder="最高" value={maxAmount} onChange={e => setMaxAmount(e.target.value)}
+                  className="w-full px-2 py-1.5 rounded-lg text-xs outline-none bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)] text-center" />
+              </div>
+            </div>
+          </div>
+
+          {/* 清除按鈕 */}
+          <div className="flex justify-end pt-2 border-t border-[var(--border)] mt-2">
+            <button onClick={() => {
+              setStartDate(""); setEndDate(""); setMember("全部"); setCategoryFilter("全部"); 
+              setMerchantFilter("全部"); setTypeFilter("全部"); setMinAmount(""); setMaxAmount("");
+            }} className="text-xs font-bold text-rose-500 bg-rose-500/10 px-4 py-2 rounded-lg">
+              清除所有篩選
+            </button>
           </div>
         </motion.div>
       )}
