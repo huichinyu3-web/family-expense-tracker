@@ -218,6 +218,8 @@ export async function updateWallet(
     type: "CASH" | "BANK" | "CREDIT_CARD" | "E_WALLET" | "OTHER";
     visibility: "PERSONAL" | "FAMILY" | "CUSTOM";
     memberIds?: string[];
+    currency?: string;
+    isSplitEnabled?: boolean;
   }
 ) {
   const session = await auth();
@@ -249,6 +251,8 @@ export async function updateWallet(
       name: data.name,
       type: data.type,
       visibility: data.visibility,
+      currency: data.currency,
+      isSplitEnabled: data.isSplitEnabled,
     })
     .where(eq(wallets.id, walletId));
 

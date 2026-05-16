@@ -217,6 +217,8 @@ function EditWalletSheet({ wallet, onClose, onDone, familyRole, familyMembers }:
   const [name, setName] = useState(wallet.name);
   const [type, setType] = useState<"CASH"|"BANK"|"CREDIT_CARD"|"E_WALLET"|"OTHER">(wallet.type as any);
   const [visibility, setVisibility] = useState<"PERSONAL"|"FAMILY"|"CUSTOM">(wallet.visibility as any);
+  const [currency, setCurrency] = useState(wallet.currency || "TWD");
+  const [isSplitEnabled, setIsSplitEnabled] = useState(wallet.isSplitEnabled || false);
   const [selectedMembers, setSelectedMembers] = useState<string[]>(wallet.walletMembers?.map(m => m.userId) || []);
   const [pending, startTransition] = useTransition();
 
@@ -228,7 +230,7 @@ function EditWalletSheet({ wallet, onClose, onDone, familyRole, familyMembers }:
     }
     startTransition(async () => {
       try {
-        await updateWallet(wallet.id, { name: name.trim(), type, visibility, memberIds: selectedMembers });
+        await updateWallet(wallet.id, { name: name.trim(), type, visibility, memberIds: selectedMembers, currency, isSplitEnabled });
         onDone();
       } catch (e: any) {
         alert(e.message || "更新失敗");
@@ -322,8 +324,35 @@ function EditWalletSheet({ wallet, onClose, onDone, familyRole, familyMembers }:
               })}
             </div>
           </div>
+
         )}
 
+        {/* 幣別 (編輯時可修改幣別) */}
+        <div className="mb-6">
+          <label className="block text-xs mb-1" style={{ color: "var(--text-muted)" }}>預設幣別</label>
+          <select
+            className="w-full px-3 py-2.5 rounded-xl text-sm outline-none appearance-none"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+            value={currency} onChange={e => setCurrency(e.target.value)}
+          >
+            <option value="TWD">TWD 台幣</option>
+            <option value="JPY">JPY 日圓</option>
+            <option value="USD">USD 美元</option>
+            <option value="EUR">EUR 歐元</option>
+            <option value="KRW">KRW 韓元</option>
+          </select>
+        </div>
+
+        {/* 拆帳模式 */}
+        {visibility !== "PERSONAL" && (
+          <label className="flex items-center gap-3 p-3 rounded-xl mb-6 cursor-pointer" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+            <input type="checkbox" checked={isSplitEnabled} onChange={e => setIsSplitEnabled(e.target.checked)} className="w-4 h-4 accent-indigo-500" />
+            <div className="flex-1">
+              <span className="block text-sm font-bold" style={{ color: "var(--text-primary)" }}>啟用拆帳與代墊結算</span>
+              <span className="block text-[10px]" style={{ color: "var(--text-muted)" }}>記錄每筆交易由誰代墊，並自動計算成員間的結算差額。</span>
+            </div>
+          </label>
+        )}
         <motion.button
           whileTap={{ scale: 0.97 }} onClick={handleSave} disabled={pending || !name.trim()}
           className="w-full h-12 rounded-2xl font-semibold text-sm"

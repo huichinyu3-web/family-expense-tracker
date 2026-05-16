@@ -139,6 +139,7 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
   const [note, setNote] = useState("");
   const [paidByUserId, setPaidByUserId] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [txCurrency, setTxCurrency] = useState<string | null>(null); // 若為 null 則跟隨帳簿
 
   // ── UI 狀態 ─────────────────────────────────────────────────────────
   const [activePanel, setActivePanel] = useState<Panel>("numpad");
@@ -201,6 +202,7 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
       setRecurringType("NONE");
       setPaidByUserId(session?.user?.id || null);
       setSelectedDate(new Date().toISOString().split("T")[0]);
+      setTxCurrency(null);
     }, 300);
   }, [onClose]);
 
@@ -267,7 +269,7 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
         merchantName: merchantInput,
         recurringType: recurringType as any,
         installments: recurringType === "INSTALLMENT" ? installments : undefined,
-        currency: selectedWallet?.currency || "TWD",
+        currency: txCurrency || selectedWallet?.currency || "TWD",
         paidByUserId: (selectedWallet?.isSplitEnabled && paidByUserId) ? paidByUserId : undefined
       };
 
@@ -365,7 +367,18 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
             {/* ── 金額顯示 ── */}
             <div className="px-5 py-4 border-b text-right flex flex-col items-end justify-center min-h-[90px]" style={{ borderColor: "var(--border)" }}>
               <motion.div key={expr} initial={{ scale: 1.02 }} animate={{ scale: 1 }} className="flex items-baseline justify-end gap-1 w-full overflow-hidden">
-                <span className="text-base font-medium flex-shrink-0" style={{ color: "var(--text-muted)" }}>{selectedWallet?.currency || "NT$"}</span>
+                <select
+                  value={txCurrency || selectedWallet?.currency || "TWD"}
+                  onChange={e => setTxCurrency(e.target.value)}
+                  className="text-sm font-bold bg-transparent outline-none cursor-pointer appearance-none flex-shrink-0 px-1"
+                  style={{ color: "var(--text-muted)" }}
+                >
+                  <option value="TWD">TWD</option>
+                  <option value="JPY">JPY</option>
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                  <option value="KRW">KRW</option>
+                </select>
                 <span className="font-bold tabular-nums tracking-tight truncate"
                   style={{ fontSize: expr.length > 8 ? "2.5rem" : "3.5rem", color: accentColor }}>
                   {expr}
