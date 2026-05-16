@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import InviteSheet from "@/components/features/InviteSheet";
 import FamilyMembersPanel from "@/components/features/FamilyMembersPanel";
+import { COMMON_CURRENCIES } from "@/lib/currencies";
 
 // ── 型別 ──────────────────────────────────────────────────────────────
 type Wallet = {
@@ -168,11 +169,9 @@ function AddWalletSheet({ onClose, onDone, familyRole, familyMembers }: { onClos
               style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
               value={currency} onChange={e => setCurrency(e.target.value)}
             >
-              <option value="TWD">TWD 台幣</option>
-              <option value="JPY">JPY 日圓</option>
-              <option value="USD">USD 美元</option>
-              <option value="EUR">EUR 歐元</option>
-              <option value="KRW">KRW 韓元</option>
+              {COMMON_CURRENCIES.map(c => (
+                <option key={c.code} value={c.code}>{c.label}</option>
+              ))}
             </select>
           </div>
           <div className="flex-1">
@@ -335,11 +334,9 @@ function EditWalletSheet({ wallet, onClose, onDone, familyRole, familyMembers }:
             style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
             value={currency} onChange={e => setCurrency(e.target.value)}
           >
-            <option value="TWD">TWD 台幣</option>
-            <option value="JPY">JPY 日圓</option>
-            <option value="USD">USD 美元</option>
-            <option value="EUR">EUR 歐元</option>
-            <option value="KRW">KRW 韓元</option>
+            {COMMON_CURRENCIES.map(c => (
+              <option key={c.code} value={c.code}>{c.label}</option>
+            ))}
           </select>
         </div>
 

@@ -11,6 +11,7 @@ import { getFamilyMembers } from "@/app/actions/family";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
+import { COMMON_CURRENCIES } from "@/lib/currencies";
 
 // ── Types ─────────────────────────────────────────────────────────────
 type WalletItem = { id: string; name: string; type: string; visibility: string; balance?: number; currency: string; isSplitEnabled: boolean };
@@ -373,11 +374,9 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
                   className="text-sm font-bold bg-transparent outline-none cursor-pointer appearance-none flex-shrink-0 px-1"
                   style={{ color: "var(--text-muted)" }}
                 >
-                  <option value="TWD">TWD</option>
-                  <option value="JPY">JPY</option>
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                  <option value="KRW">KRW</option>
+                  {COMMON_CURRENCIES.map(c => (
+                    <option key={c.code} value={c.code}>{c.code}</option>
+                  ))}
                 </select>
                 <span className="font-bold tabular-nums tracking-tight truncate"
                   style={{ fontSize: expr.length > 8 ? "2.5rem" : "3.5rem", color: accentColor }}>
