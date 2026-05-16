@@ -1,49 +1,36 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { useState } from "react";
-import { Search, SlidersHorizontal, TrendingDown, TrendingUp } from "lucide-react";
-
-type TransactionItem = {
-  id: string;
-  icon: string;
-  name: string;
-  category: string;
-  amount: number;
-  member: string;
-  avatar: string;
-  date: string;
-  type: string;
-  walletName: string | null;
-  walletType: string | null;
-  merchantName: string | null;
-  note: string | null;
-  recurringType: string | null;
-  installments: number | null;
-};
+import { motion, AnimatePresence } from "framer-motion";
+import { useState, useTransition } from "react";
+import { Search, SlidersHorizontal, TrendingDown, TrendingUp, X, Edit2, Trash2 } from "lucide-react";
+import { deleteTransaction } from "@/app/actions/transaction";
+import { useRouter } from "next/navigation";
+import QuickAddDrawer from "@/components/features/QuickAddDrawer";
 
 const WALLET_ICONS: Record<string, string> = {
   CASH: "💵", BANK: "🏦", CREDIT_CARD: "💳", E_WALLET: "📱", OTHER: "💰"
 };
 
-const MEMBERS  = ["全部", "小明", "小花"];
+const MEMBERS  = ["全部", "小明", "小花"]; // 未來這也要動態讀取
 const TYPES    = ["全部", "支出", "收入"];
 
-function Avatar({ initial }: { initial: string }) {
+function Avatar({ initial, colorId }: { initial: string; colorId: string }) {
+  const isAlt = colorId.length % 2 === 0;
   return (
     <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
-      style={{ background: "var(--gradient-primary)" }}>
+      style={{ background: isAlt ? "#ec4899" : "#6366f1" }}>
       {initial}
     </div>
   );
 }
 
 // 依日期分組
-function groupByDate(txs: TransactionItem[]) {
-  const groups: Record<string, TransactionItem[]> = {};
+function groupByDate(txs: any[]) {
+  const groups: Record<string, any[]> = {};
   txs.forEach(tx => {
-    if (!groups[tx.date]) groups[tx.date] = [];
-    groups[tx.date].push(tx);
+    const dStr = new Date(tx.date).toISOString().split("T")[0];
+    if (!groups[dStr]) groups[dStr] = [];
+    groups[dStr].push(tx);
   });
   return groups;
 }
@@ -58,16 +45,23 @@ function formatDate(dateStr: string) {
   return `${d.getMonth() + 1} 月 ${d.getDate()} 日`;
 }
 
-export default function TransactionsClient({ initialData }: { initialData: TransactionItem[] }) {
+export default function TransactionsClient({ initialData, currentUserId }: { initialData: any[]; currentUserId: string | undefined }) {
+  const router = useRouter();
   const [search, setSearch]       = useState("");
   const [member, setMember]       = useState("全部");
   const [typeFilter, setTypeFilter] = useState("全部");
   const [showFilter, setShowFilter] = useState(false);
 
+  // 編輯與刪除狀態
+  const [selectedTx, setSelectedTx] = useState<any>(null);
+  const [editTxData, setEditTxData] = useState<any>(null);
+  const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
   const filtered = initialData.filter(tx => {
-    const searchTarget = `${tx.name} ${tx.category} ${tx.merchantName || ""} ${tx.note || ""}`;
+    const searchTarget = `${tx.category?.name} ${tx.merchant?.name || ""} ${tx.note || ""}`;
     const matchSearch = searchTarget.includes(search);
-    const matchMember = member === "全部" || tx.member === member;
+    const matchMember = member === "全部" || tx.user?.name === member; // 目前還沒做真動態，先簡單配
     const matchType   = typeFilter === "全部"
       || (typeFilter === "支出" && tx.type === "EXPENSE")
       || (typeFilter === "收入" && tx.type === "INCOME");
@@ -77,6 +71,21 @@ export default function TransactionsClient({ initialData }: { initialData: Trans
   const totalExpense = filtered.filter(t => t.type === "EXPENSE").reduce((s, t) => s + Math.abs(t.amount), 0);
   const totalIncome  = filtered.filter(t => t.type === "INCOME").reduce((s, t) => s + t.amount, 0);
   const grouped = groupByDate(filtered);
+
+  const handleDelete = () => {
+    if (!selectedTx || selectedTx.userId !== currentUserId) return;
+    if (!confirm("確定要刪除這筆紀錄嗎？")) return;
+    
+    startTransition(async () => {
+      try {
+        await deleteTransaction(selectedTx.id);
+        setSelectedTx(null);
+        router.refresh();
+      } catch (e: any) {
+        alert(e.message || "刪除失敗");
+      }
+    });
+  };
 
   return (
     <div className="px-4 pt-6 pb-2 max-w-lg mx-auto">
@@ -182,7 +191,7 @@ export default function TransactionsClient({ initialData }: { initialData: Trans
           <p className="text-sm">找不到符合的紀錄</p>
         </div>
       ) : (
-        Object.entries(grouped).map(([date, txs]) => (
+        Object.entries(grouped).sort((a,b) => new Date(b[0]).getTime() - new Date(a[0]).getTime()).map(([date, txs]) => (
           <div key={date} className="mb-5">
             {/* 日期標頭 */}
             <div className="flex items-center gap-2 mb-2 px-1">
@@ -206,16 +215,17 @@ export default function TransactionsClient({ initialData }: { initialData: Trans
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.03 }}
-                  className="glass-card px-3.5 py-3 flex items-start gap-3"
+                  onClick={() => setSelectedTx(tx)}
+                  className="glass-card px-3.5 py-3 flex items-start gap-3 active:scale-95 transition-transform cursor-pointer"
                 >
                   {/* Icon + 成員頭貼 */}
                   <div className="relative flex-shrink-0 mt-0.5">
                     <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl"
                       style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
-                      {tx.icon}
+                      {tx.category?.icon || "📦"}
                     </div>
                     <div className="absolute -bottom-1 -right-1 ring-2 ring-[var(--bg-surface)] rounded-full">
-                      <Avatar initial={tx.avatar} />
+                      <Avatar initial={(tx.user?.name || "U")[0].toUpperCase()} colorId={tx.user?.id || "1"} />
                     </div>
                   </div>
 
@@ -223,7 +233,7 @@ export default function TransactionsClient({ initialData }: { initialData: Trans
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start mb-1">
                       <p className="text-sm font-semibold truncate flex items-center gap-1.5" style={{ color: "var(--text-primary)" }}>
-                        {tx.merchantName || tx.category}
+                        {tx.merchant?.name || tx.category?.name || "未知"}
                       </p>
                       {/* 金額 */}
                       <span className="font-bold text-[15px] tabular-nums flex-shrink-0 ml-2"
@@ -236,13 +246,13 @@ export default function TransactionsClient({ initialData }: { initialData: Trans
                     <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                       <span className="text-[10px] px-1.5 py-0.5 rounded-md"
                         style={{ background: "var(--bg-card)", color: "var(--text-muted)", border: "1px solid var(--border)" }}>
-                        {tx.category}
+                        {tx.category?.name || "未知"}
                       </span>
-                      {tx.walletName && (
+                      {tx.wallet && (
                         <span className="text-[10px] flex items-center gap-1 px-1.5 py-0.5 rounded-md"
                           style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1" }}>
-                          <span>{WALLET_ICONS[tx.walletType || "OTHER"] || "💳"}</span>
-                          {tx.walletName}
+                          <span>{WALLET_ICONS[tx.wallet.type || "OTHER"] || "💳"}</span>
+                          {tx.wallet.name}
                         </span>
                       )}
                       {tx.recurringType === "INSTALLMENT" && (
@@ -272,6 +282,62 @@ export default function TransactionsClient({ initialData }: { initialData: Trans
           </div>
         ))
       )}
+
+      {/* ── 交易操作彈出視窗 ── */}
+      <AnimatePresence>
+        {selectedTx && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setSelectedTx(null)}
+              className="fixed inset-0 z-50"
+              style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(2px)" }} />
+            
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              className="fixed bottom-0 left-0 right-0 z-50 bg-[var(--bg-surface)] rounded-t-3xl border-t border-[var(--border)] pb-8 pt-4 px-6 max-w-lg mx-auto shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+              
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <p className="text-sm font-bold text-[var(--text-primary)]">
+                    {selectedTx.category?.name} <span className="text-[var(--text-muted)] font-normal text-xs ml-2">{new Date(selectedTx.date).toLocaleDateString()}</span>
+                  </p>
+                  <span className="font-semibold tabular-nums text-2xl" style={{ color: selectedTx.type === "INCOME" ? "#10b981" : (selectedTx.amount < 0 ? "#f43f5e" : "var(--text-primary)") }}>
+                    {selectedTx.type === "INCOME" ? "+" : ""}NT${Math.abs(selectedTx.amount).toLocaleString()}
+                  </span>
+                </div>
+                <button onClick={() => setSelectedTx(null)} className="p-2 bg-[var(--bg-card)] hover:bg-[var(--bg-surface)] rounded-full transition-colors border border-[var(--border)]">
+                  <X size={20} className="text-[var(--text-secondary)]" />
+                </button>
+              </div>
+
+              {selectedTx.userId === currentUserId ? (
+                <div className="flex gap-3">
+                  <button onClick={() => { setEditTxData(selectedTx); setIsEditDrawerOpen(true); setSelectedTx(null); }}
+                    className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-bold bg-[var(--bg-card)] text-[var(--text-primary)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition-colors">
+                    <Edit2 size={16} /> 編輯
+                  </button>
+                  <button onClick={handleDelete} disabled={isPending}
+                    className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500/20 transition-colors disabled:opacity-50">
+                    <Trash2 size={16} /> {isPending ? "刪除中..." : "刪除"}
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center py-4 bg-[var(--bg-card)] rounded-xl border border-[var(--border)]">
+                  <p className="text-sm text-[var(--text-secondary)] mb-1">這是 {selectedTx.user?.name || "其他成員"} 的紀錄</p>
+                  <p className="text-xs text-[var(--text-muted)]">只有建立者可以編輯或刪除</p>
+                </div>
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── 編輯專用 Drawer ── */}
+      <QuickAddDrawer 
+        open={isEditDrawerOpen} 
+        onClose={() => { setIsEditDrawerOpen(false); setEditTxData(null); }} 
+        editData={editTxData} 
+      />
+
     </div>
   );
 }
