@@ -9,6 +9,7 @@ import { deleteTransaction } from "@/app/actions/transaction";
 import { useRouter } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
 import QuickAddDrawer from "@/components/features/QuickAddDrawer";
+import SettlementModal from "@/components/features/SettlementModal";
 
 const CHART_COLORS = ["#6366f1", "#f1f5f9"];
 const MONTHS = ["一月","二月","三月","四月","五月","六月","七月","八月","九月","十月","十一月","十二月"];
@@ -47,6 +48,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
   const [selectedTx, setSelectedTx] = useState<any>(null);
   const [editTxData, setEditTxData] = useState<any>(null);
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
+  const [showSettlement, setShowSettlement] = useState(false);
 
   // 進階篩選狀態
   const [showFilter, setShowFilter] = useState(false);
@@ -479,6 +481,18 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
               <p className="font-bold mt-0.5" style={{ color: "var(--text-primary)" }}>NT${Math.round(splitState.myShare).toLocaleString()}</p>
             </div>
           </div>
+          {/* 前往結算按鈕 */}
+          <button
+            onClick={() => setShowSettlement(true)}
+            className="mt-3 w-full py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95"
+            style={{
+              background: "rgba(99,102,241,0.1)",
+              color: "#6366f1",
+              border: "1px solid rgba(99,102,241,0.25)",
+            }}
+          >
+            📐 前往結算中心
+          </button>
         </motion.div>
       )}
 
@@ -629,6 +643,17 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
         onClose={() => { setIsEditDrawerOpen(false); setEditTxData(null); }} 
         editData={editTxData} 
       />
+
+      {/* ── 結算中心 Modal ── */}
+      <AnimatePresence>
+        {showSettlement && selectedWallet && (
+          <SettlementModal
+            walletId={selectedWallet.id}
+            walletName={selectedWallet.name}
+            onClose={() => setShowSettlement(false)}
+          />
+        )}
+      </AnimatePresence>
 
     </div>
   );
