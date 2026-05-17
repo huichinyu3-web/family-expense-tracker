@@ -195,14 +195,23 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
     return total > 0 ? total : null;
   })();
 
-  // 1. 當前餘額強制只算「本月已收 - 本月已付」
-  const currentBalance = pastIncome - pastExpense;
+  // 1. 本月收支結餘
+  const monthlySavings = pastIncome - pastExpense;
+
+  // 2. 當前餘額大字顯示為「歷史累積真實總餘額（總資產）」
+  const currentBalance = (() => {
+    const targetWalletsForBalance = selectedWallets.length > 0
+      ? wallets.filter((w: any) => selectedWallets.includes(w.id))
+      : wallets;
+    return targetWalletsForBalance.reduce((sum: number, w: any) => sum + (w.balance || 0), 0);
+  })();
+
   const spentPct = effectiveBudget != null ? Math.min((totalExpense / effectiveBudget) * 100, 100) : 0;
 
   // 圓餅圖：紅色為本月已付支出，綠色為當前餘額
   const CHART_DATA = [
     { name: "本月支出", value: pastExpense },
-    { name: "當前餘額", value: Math.max(currentBalance, 0) || (pastExpense === 0 ? 1 : 0) },
+    { name: "當前餘額", value: Math.max(monthlySavings, 0) || (pastExpense === 0 ? 1 : 0) },
   ];
 
   // ── 1. 分類支出排行 (Top Categories Breakdown) ──
@@ -547,7 +556,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
 
           {/* 圓心文字 */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>當前餘額</p>
+            <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>當前總資產</p>
             <CountUp
               end={currentBalance}
               prefix="NT$"
@@ -555,9 +564,9 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
               className="text-2xl font-bold"
               style={{ color: currentBalance >= 0 ? "#10b981" : "#f43f5e" }}
             />
-            {currentBalance >= 0 ? (
+            {monthlySavings >= 0 ? (
               <p className="text-[10px] mt-0.5 opacity-80" style={{ color: "var(--text-muted)" }}>
-                結餘 {pastIncome > 0 ? ((currentBalance / pastIncome) * 100).toFixed(0) : 0}%
+                結餘 {pastIncome > 0 ? ((monthlySavings / pastIncome) * 100).toFixed(0) : 0}%
               </p>
             ) : (
               <p className="text-[10px] mt-0.5 font-bold animate-pulse" style={{ color: "#f43f5e" }}>
