@@ -44,7 +44,16 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
   const [monthIdx, setMonthIdx] = useState(now.getMonth());
   const [year, setYear] = useState(now.getFullYear());
 
-  const [selectedWalletId, setSelectedWalletId] = useState<string>("ALL");
+  const getGreeting = () => {
+    const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+    const twHour = new Date(utcMs + 8 * 3600000).getHours();
+    if (twHour >= 5  && twHour < 12) return "早安！☀️";
+    if (twHour >= 12 && twHour < 18) return "午安！🌤️";
+    if (twHour >= 18 && twHour < 22) return "晚安！🌙";
+    return "夜深了！🌛";
+  };
+
+  const [selectedWallets, setSelectedWallets] = useState<string[]>([]);
   const [selectedTx, setSelectedTx] = useState<any>(null);
   const [editTxData, setEditTxData] = useState<any>(null);
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
@@ -67,10 +76,12 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
   const CATEGORIES = ["全部", ...Array.from(new Set(transactions.map((t:any) => t.category?.name).filter(Boolean)))];
   const MERCHANTS = ["全部", ...Array.from(new Set(transactions.map((t:any) => t.merchant?.name).filter(Boolean)))];
 
-  // 當選擇特定帳簿時，將 ID 寫入 localStorage 供 QuickAddDrawer 讀取
-  const handleWalletSelect = (id: string) => {
-    setSelectedWalletId(id);
-    if (id !== "ALL") localStorage.setItem("lastSelectedWallet", id);
+  const handleWalletToggle = (id: string) => {
+    setSelectedWallets(prev => {
+      const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
+      if (next.length === 1) localStorage.setItem("lastSelectedWallet", next[0]);
+      return next;
+    });
   };
 
   const handleDelete = () => {
@@ -95,7 +106,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
       // 月份過濾 (如果沒有設定特定日期區間，才套用月份過濾)
       const isSameMonth = (startDate || endDate) ? true : (txDateObj.getMonth() === monthIdx && txDateObj.getFullYear() === year);
       
-      const matchWallet = selectedWalletId === "ALL" || tx.walletId === selectedWalletId;
+      const matchWallet = selectedWallets.length === 0 || selectedWallets.includes(tx.walletId);
       
       const matchMember = selectedMembers.length === 0 || selectedMembers.includes(tx.user?.name);
       const matchType   = typeFilter === "全部"
@@ -122,12 +133,13 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
 
       return isSameMonth && matchWallet && matchMember && matchType && matchCat && matchMerch && matchMin && matchMax && matchStart && matchEnd && matchSearch;
     });
-  }, [transactions, monthIdx, year, selectedWalletId, selectedMembers, typeFilter, categoryFilter, merchantFilter, minAmount, maxAmount, startDate, endDate, search]);
+  }, [transactions, monthIdx, year, selectedWallets, selectedMembers, typeFilter, categoryFilter, merchantFilter, minAmount, maxAmount, startDate, endDate, search]);
 
   const totalExpense = filteredTx.filter((tx: any) => tx.type === "EXPENSE").reduce((sum: number, tx: any) => sum + Math.abs(tx.amount), 0);
   const totalIncome = filteredTx.filter((tx: any) => tx.type === "INCOME").reduce((sum: number, tx: any) => sum + tx.amount, 0);
   
-  const selectedWallet = selectedWalletId === "ALL" ? null : wallets.find((w: any) => w.id === selectedWalletId);
+  // 若只選了一個帳簿，才顯示拆帳/詳細餘額等資訊
+  const selectedWallet = selectedWallets.length === 1 ? wallets.find((w: any) => w.id === selectedWallets[0]) : null;
   
   // 計算拆帳狀態
   let splitState = null;
@@ -214,7 +226,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
       {/* ── 頂部：標題列與視角切換 ── */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>早安！</p>
+          <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>{getGreeting()}</p>
           <h1 className="text-lg font-bold truncate max-w-[150px]" style={{ color: "var(--text-primary)" }}>
             {userName} 👤
           </h1>
@@ -416,28 +428,22 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
         </button>
       </div>
 
-      {/* ── 帳簿過濾選擇器 ── */}
+      {/* ── 帳簿過濾選擇器（多選） ── */}
       <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2 mb-4">
-        <button onClick={() => handleWalletSelect("ALL")}
-          className="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all"
-          style={{
-            background: selectedWalletId === "ALL" ? "rgba(99,102,241,0.15)" : "var(--bg-card)",
-            color: selectedWalletId === "ALL" ? "#6366f1" : "var(--text-secondary)",
-            border: selectedWalletId === "ALL" ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
-          }}>
-          📊 全部總覽
-        </button>
-        {wallets.map((w: any) => (
-          <button key={w.id} onClick={() => handleWalletSelect(w.id)}
-            className="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
-            style={{
-              background: selectedWalletId === w.id ? "rgba(16,185,129,0.15)" : "var(--bg-card)",
-              color: selectedWalletId === w.id ? "#10b981" : "var(--text-secondary)",
-              border: selectedWalletId === w.id ? "1px solid rgba(16,185,129,0.4)" : "1px solid var(--border)",
-            }}>
-            <span>{w.name}</span>
-          </button>
-        ))}
+        {wallets.map((w: any) => {
+          const isSel = selectedWallets.includes(w.id);
+          return (
+            <button key={w.id} onClick={() => handleWalletToggle(w.id)}
+              className="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+              style={{
+                background: isSel ? "rgba(16,185,129,0.15)" : "var(--bg-card)",
+                color: isSel ? "#10b981" : "var(--text-secondary)",
+                border: isSel ? "1px solid rgba(16,185,129,0.4)" : "1px solid var(--border)",
+              }}>
+              <span>{w.name}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* ── 核心視覺：預算甜甜圈圖 ── */}

@@ -49,7 +49,7 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
   const [search, setSearch]       = useState("");
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [typeFilter, setTypeFilter] = useState("全部");
-  const [walletFilter, setWalletFilter] = useState("ALL");
+  const [selectedWallets, setSelectedWallets] = useState<string[]>([]);
   const [showFilter, setShowFilter] = useState(false);
 
   // 進階篩選狀態
@@ -103,7 +103,7 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
     const matchType   = typeFilter === "全部"
       || (typeFilter === "支出" && tx.type === "EXPENSE")
       || (typeFilter === "收入" && tx.type === "INCOME");
-    const matchWallet = walletFilter === "ALL" || tx.walletId === walletFilter;
+    const matchWallet = selectedWallets.length === 0 || selectedWallets.includes(tx.walletId);
     const matchCat    = categoryFilter === "全部" || tx.category?.name === categoryFilter;
     const matchMerch  = merchantFilter === "全部" || tx.merchant?.name === merchantFilter;
     
@@ -142,28 +142,25 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
   return (
     <div className="px-4 pt-6 pb-2 max-w-lg mx-auto">
 
-      {/* ── 帳簿過濾選擇器 (仿 Dashboard) ── */}
+      {/* ── 帳簿過濾選擇器（多選） ── */}
       <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2 mb-4">
-        <button onClick={() => setWalletFilter("ALL")}
-          className="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all"
-          style={{
-            background: walletFilter === "ALL" ? "rgba(99,102,241,0.15)" : "var(--bg-card)",
-            color: walletFilter === "ALL" ? "#6366f1" : "var(--text-secondary)",
-            border: walletFilter === "ALL" ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
-          }}>
-          📊 全部總覽
-        </button>
-        {wallets.map((w: any) => (
-          <button key={w.id} onClick={() => setWalletFilter(w.id)}
-            className="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
-            style={{
-              background: walletFilter === w.id ? "rgba(16,185,129,0.15)" : "var(--bg-card)",
-              color: walletFilter === w.id ? "#10b981" : "var(--text-secondary)",
-              border: walletFilter === w.id ? "1px solid rgba(16,185,129,0.4)" : "1px solid var(--border)",
-            }}>
-            <span>{w.name}</span>
-          </button>
-        ))}
+        {wallets.map((w: any) => {
+          const isSel = selectedWallets.includes(w.id);
+          return (
+            <button key={w.id} onClick={() => setSelectedWallets(prev =>
+              isSel ? prev.filter(x => x !== w.id) : [...prev, w.id]
+            )}
+              className="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+              style={{
+                background: isSel ? "rgba(16,185,129,0.15)" : "var(--bg-card)",
+                color: isSel ? "#10b981" : "var(--text-secondary)",
+                border: isSel ? "1px solid rgba(16,185,129,0.4)" : "1px solid var(--border)",
+              }}>
+              <span>{w.name}</span>
+            </button>
+          );
+        })}
+
       </div>
 
       {/* ── 頂部標題 ── */}
