@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useMemo, useTransition } from "react"
 import { X, Check, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { getAccessibleWallets } from "@/app/actions/wallet";
 import { getCategories, createChildCategory } from "@/app/actions/category";
-import { getMerchants } from "@/app/actions/merchant";
+import { getMerchants, getFrequentMerchants } from "@/app/actions/merchant";
 import { addTransaction, updateTransaction } from "@/app/actions/transaction";
 import { getFamilyMembers } from "@/app/actions/family";
 import { useRouter } from "next/navigation";
@@ -153,6 +153,7 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
   const [wallets, setWallets] = useState<WalletItem[]>([]);
   const [allCategories, setAllCategories] = useState<CategoryParent[]>([]);
   const [merchants, setMerchants] = useState<MerchantItem[]>([]);
+  const [frequentMerchants, setFrequentMerchants] = useState<MerchantItem[]>([]);
   const [members, setMembers] = useState<FamilyMemberItem[]>([]);
 
   // 分類連動：根據頂部的 type 開關即時篩選
@@ -160,12 +161,13 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
 
   useEffect(() => {
     if (!open) return;
-    Promise.all([getAccessibleWallets(), getCategories(), getMerchants(), getFamilyMembers()])
-      .then(([w, c, m, fm]) => {
+    Promise.all([getAccessibleWallets(), getCategories(), getMerchants(), getFrequentMerchants(5), getFamilyMembers()])
+      .then(([w, c, m, fm, familyMembersData]) => {
         setWallets(w as WalletItem[]);
         setAllCategories(c as CategoryParent[]);
         setMerchants(m as MerchantItem[]);
-        setMembers(fm as any);
+        setFrequentMerchants(fm as MerchantItem[]);
+        setMembers(familyMembersData as any);
 
         if (editData) {
           setType(editData.type);
@@ -593,7 +595,24 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
                         className="flex-1 px-4 py-3 rounded-xl text-base outline-none bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)]" />
                       <button onClick={() => setActivePanel("numpad")} className="px-6 rounded-xl text-base font-bold bg-indigo-500 text-white">確定</button>
                     </div>
+
+                    {frequentMerchants.length > 0 && !merchantInput && (
+                      <div className="mt-4">
+                        <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>⭐ 常用捷徑</p>
+                        <div className="flex flex-wrap gap-2">
+                          {frequentMerchants.map(m => (
+                            <button key={m.id} onClick={() => { setMerchantInput(m.name); setActivePanel("numpad"); }}
+                              className="px-4 py-2 rounded-xl text-sm font-bold transition-all hover:-translate-y-0.5 hover:shadow-md"
+                              style={{ background: "rgba(99,102,241,0.15)", color: "#6366f1", border: "1px solid rgba(99,102,241,0.3)" }}>
+                              {m.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex flex-wrap gap-2 mt-5 overflow-y-auto">
+                      <p className="w-full text-xs font-semibold mb-1" style={{ color: "var(--text-muted)" }}>歷史商家</p>
                       {merchants.filter(m => m.name.includes(merchantInput)).slice(0, 10).map(m => (
                         <button key={m.id} onClick={() => { setMerchantInput(m.name); setActivePanel("numpad"); }}
                           className="px-4 py-2 rounded-xl text-sm font-medium bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-white">

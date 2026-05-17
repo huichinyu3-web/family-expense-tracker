@@ -2,8 +2,8 @@
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { merchants, familyMembers } from "@/lib/db/schema";
-import { eq, like } from "drizzle-orm";
+import { merchants, familyMembers, transactions } from "@/lib/db/schema";
+import { eq, like, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import crypto from "crypto";
 
@@ -30,6 +30,41 @@ export async function getMerchants(search?: string) {
     orderBy: (m, { desc }) => [desc(m.createdAt)],
     limit: 50,
   });
+}
+
+// ── 取得常用商家 (基於最近 100 筆交易頻率) ──────────────────────────────
+export async function getFrequentMerchants(limit: number = 5) {
+  const session = await auth();
+  if (!session?.user?.id) return [];
+
+  const membership = await db.query.familyMembers.findFirst({
+    where: eq(familyMembers.userId, session.user.id),
+  });
+  if (!membership) return [];
+
+  const txs = await db.query.transactions.findMany({
+    where: eq(transactions.familyId, membership.familyId),
+    with: { merchant: true },
+    orderBy: [desc(transactions.date)],
+    limit: 100,
+  });
+
+  const freqMap = new Map<string, { merchant: any; count: number }>();
+  for (const tx of txs) {
+    if (tx.merchant) {
+      const existing = freqMap.get(tx.merchant.id);
+      if (existing) {
+        existing.count++;
+      } else {
+        freqMap.set(tx.merchant.id, { merchant: tx.merchant, count: 1 });
+      }
+    }
+  }
+
+  return Array.from(freqMap.values())
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit)
+    .map(x => x.merchant);
 }
 
 // ── 建立商家（若重名則直接回傳現有的） ───────────────────────────────
