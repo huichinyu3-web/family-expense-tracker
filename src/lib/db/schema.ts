@@ -191,6 +191,7 @@ export const wallets = sqliteTable("wallets", {
   // -- 帳簿擴充 --
   currency: text("currency").notNull().default("TWD"),
   isSplitEnabled: integer("is_split_enabled", { mode: "boolean" }).notNull().default(false),
+  monthlyBudget: real("monthly_budget"), // 每月預算（可選，null 代表不設定）
   createdAt: integer("created_at").default(sql`(cast(strftime('%s', 'now') as integer))`),
 });
 

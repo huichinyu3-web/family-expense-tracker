@@ -172,11 +172,22 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
     splitState = { myPaid, myShare, myNetBalance, membersCount };
   }
 
-  // 如果選了特定帳簿，中心顯示「該帳簿當前總餘額」
-  // 如果是全部，則顯示簡易預算剩餘（Mock）
-  const MOCK_BUDGET = 50000;
-  const currentBalance = selectedWallet ? selectedWallet.balance : (MOCK_BUDGET - totalExpense);
-  const spentPct = selectedWallet ? 0 : Math.min((totalExpense / MOCK_BUDGET) * 100, 100) || 0;
+  // 計算預算：單選帳簿用該帳簿的預算；多選帳簿則加總所有已選帳簿有設預算者
+  const effectiveBudget = (() => {
+    if (selectedWallet) {
+      return selectedWallet.monthlyBudget ?? null;
+    }
+    // 多選或全選時：加總有設定 monthlyBudget 的帳簿
+    const targetWallets = selectedWallets.length > 0
+      ? wallets.filter((w: any) => selectedWallets.includes(w.id))
+      : wallets;
+    const total = targetWallets.reduce((sum: number, w: any) => sum + (w.monthlyBudget || 0), 0);
+    return total > 0 ? total : null;
+  })();
+
+  // 如果選了特定帳簿，中心顯示「該帳簿當前總餘額」；否則顯示合計收支差
+  const currentBalance = selectedWallet ? selectedWallet.balance : (effectiveBudget != null ? effectiveBudget - totalExpense : totalIncome - totalExpense);
+  const spentPct = effectiveBudget != null ? Math.min((totalExpense / effectiveBudget) * 100, 100) : 0;
 
   // 圓餅圖：如果是單一帳簿，顯示本月的收入與支出比例，如果是全部，顯示預算與已花費
   const CHART_DATA = selectedWallet ? [
@@ -215,15 +226,21 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
       return { text: `💡 提醒：本月【${categoryExpenses[0].name}】花費佔比高達 ${categoryExpenses[0].percent.toFixed(0)}%，可能需要稍微留意喔！`, type: "warning" };
     }
 
-    if (!selectedWallet && spentPct >= 100) {
-       return { text: `🚨 警告：本月花費已超出預算！請注意控制開銷。`, type: "danger" };
+    // 預算超支提醒（只有設定了預算才顯示）
+    if (effectiveBudget != null && spentPct >= 100) {
+      return { text: `🚨 預算超標！本月花費已超過設定的 NT$${effectiveBudget.toLocaleString()} 預算，請留意控制開銷！`, type: "danger" };
     }
-    if (!selectedWallet && spentPct > 80) {
-       return { text: `⚠️ 提醒：本月花費已達預算 ${spentPct.toFixed(0)}%，請注意控制開銷。`, type: "warning" };
+    if (effectiveBudget != null && spentPct > 80) {
+      return { text: `⚠️ 提醒：本月花費已達預算 ${spentPct.toFixed(0)}%，距離上限僅剩 NT$${(effectiveBudget - totalExpense).toLocaleString()}！`, type: "warning" };
+    }
+
+    // 尚未設定預算提示
+    if (effectiveBudget == null && totalExpense > 0) {
+      return { text: "💡 小提示：在「設定 > 帳簿管理」中為您的帳簿設定每月預算，就能在這裡看到精準的預算控管警示！", type: "success" };
     }
 
     return { text: "🔥 您已經開始記帳了，繼續保持這個好習慣！", type: "success" };
-  }, [selectedWallet, currentBalance, totalExpense, totalIncome, categoryExpenses, spentPct]);
+  }, [selectedWallet, currentBalance, totalExpense, totalIncome, categoryExpenses, spentPct, effectiveBudget]);
 
   const onboardingSlides = [
     {
@@ -543,7 +560,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
         <div className="mt-4">
           <div className="flex justify-between text-xs mb-2" style={{ color: "var(--text-muted)" }}>
             <span>{selectedWallet ? "本月支出" : "已花費"} NT${totalExpense.toLocaleString()}</span>
-            <span>{selectedWallet ? "本月收入" : "預算"} NT${(selectedWallet ? totalIncome : MOCK_BUDGET).toLocaleString()}</span>
+            <span>{selectedWallet ? "本月收入" : "預算"} {effectiveBudget != null ? `NT$${effectiveBudget.toLocaleString()}` : (selectedWallet ? `NT$${totalIncome.toLocaleString()}` : "未設定")}</span>
           </div>
           {!selectedWallet && (
             <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-card)" }}>

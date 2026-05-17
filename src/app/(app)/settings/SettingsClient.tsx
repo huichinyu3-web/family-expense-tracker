@@ -19,7 +19,7 @@ import { COMMON_CURRENCIES } from "@/lib/currencies";
 // ── 型別 ──────────────────────────────────────────────────────────────
 type Wallet = {
   id: string; name: string; type: string; visibility: string; ownerId?: string | null; balance?: number;
-  currency: string; isSplitEnabled: boolean;
+  currency: string; isSplitEnabled: boolean; monthlyBudget?: number | null;
   walletMembers?: { userId: string }[];
 };
 type CategoryChild = { id: string; name: string; icon: string | null; isDefault: boolean; isHidden: boolean; };
@@ -57,6 +57,7 @@ function AddWalletSheet({ onClose, onDone, familyRole, familyMembers }: { onClos
   const [initialBalance, setInitialBalance] = useState("");
   const [currency, setCurrency] = useState("TWD");
   const [isSplitEnabled, setIsSplitEnabled] = useState(false);
+  const [monthlyBudget, setMonthlyBudget] = useState("");
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [pending, startTransition] = useTransition();
 
@@ -67,7 +68,7 @@ function AddWalletSheet({ onClose, onDone, familyRole, familyMembers }: { onClos
       return;
     }
     startTransition(async () => {
-      await createWallet({ name: name.trim(), type, visibility, initialBalance: parseFloat(initialBalance) || 0, currency, isSplitEnabled, memberIds: selectedMembers });
+      await createWallet({ name: name.trim(), type, visibility, initialBalance: parseFloat(initialBalance) || 0, currency, isSplitEnabled, monthlyBudget: monthlyBudget ? parseFloat(monthlyBudget) : null, memberIds: selectedMembers });
       onDone();
     });
   };
@@ -188,7 +189,7 @@ function AddWalletSheet({ onClose, onDone, familyRole, familyMembers }: { onClos
 
         {/* 拆帳模式 */}
         {visibility !== "PERSONAL" && (
-          <label className="flex items-center gap-3 p-3 rounded-xl mb-6 cursor-pointer" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+          <label className="flex items-center gap-3 p-3 rounded-xl mb-4 cursor-pointer" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
             <input type="checkbox" checked={isSplitEnabled} onChange={e => setIsSplitEnabled(e.target.checked)} className="w-4 h-4 accent-indigo-500" />
             <div className="flex-1">
               <span className="block text-sm font-bold" style={{ color: "var(--text-primary)" }}>啟用拆帳與代墊結算</span>
@@ -196,6 +197,22 @@ function AddWalletSheet({ onClose, onDone, familyRole, familyMembers }: { onClos
             </div>
           </label>
         )}
+
+        {/* 每月預算 */}
+        <div className="mb-6">
+          <label className="block text-xs mb-1" style={{ color: "var(--text-muted)" }}>每月預算（選填）</label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color: "var(--text-muted)" }}>NT$</span>
+            <input
+              type="number"
+              min="0"
+              className="w-full pl-10 pr-3 py-2.5 rounded-xl text-sm outline-none"
+              style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+              placeholder="不設定則不顯示預算警示"
+              value={monthlyBudget} onChange={e => setMonthlyBudget(e.target.value)}
+            />
+          </div>
+        </div>
 
         <motion.button
           whileTap={{ scale: 0.97 }} onClick={handleSave} disabled={pending || !name.trim()}
@@ -218,6 +235,7 @@ function EditWalletSheet({ wallet, onClose, onDone, familyRole, familyMembers }:
   const [visibility, setVisibility] = useState<"PERSONAL"|"FAMILY"|"CUSTOM">(wallet.visibility as any);
   const [currency, setCurrency] = useState(wallet.currency || "TWD");
   const [isSplitEnabled, setIsSplitEnabled] = useState(wallet.isSplitEnabled || false);
+  const [monthlyBudget, setMonthlyBudget] = useState(wallet.monthlyBudget != null ? String(wallet.monthlyBudget) : "");
   const [selectedMembers, setSelectedMembers] = useState<string[]>(wallet.walletMembers?.map(m => m.userId) || []);
   const [pending, startTransition] = useTransition();
 
@@ -229,7 +247,7 @@ function EditWalletSheet({ wallet, onClose, onDone, familyRole, familyMembers }:
     }
     startTransition(async () => {
       try {
-        await updateWallet(wallet.id, { name: name.trim(), type, visibility, memberIds: selectedMembers, currency, isSplitEnabled });
+        await updateWallet(wallet.id, { name: name.trim(), type, visibility, memberIds: selectedMembers, currency, isSplitEnabled, monthlyBudget: monthlyBudget ? parseFloat(monthlyBudget) : null });
         onDone();
       } catch (e: any) {
         alert(e.message || "更新失敗");
@@ -342,7 +360,7 @@ function EditWalletSheet({ wallet, onClose, onDone, familyRole, familyMembers }:
 
         {/* 拆帳模式 */}
         {visibility !== "PERSONAL" && (
-          <label className="flex items-center gap-3 p-3 rounded-xl mb-6 cursor-pointer" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+          <label className="flex items-center gap-3 p-3 rounded-xl mb-4 cursor-pointer" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
             <input type="checkbox" checked={isSplitEnabled} onChange={e => setIsSplitEnabled(e.target.checked)} className="w-4 h-4 accent-indigo-500" />
             <div className="flex-1">
               <span className="block text-sm font-bold" style={{ color: "var(--text-primary)" }}>啟用拆帳與代墊結算</span>
@@ -350,6 +368,22 @@ function EditWalletSheet({ wallet, onClose, onDone, familyRole, familyMembers }:
             </div>
           </label>
         )}
+
+        {/* 每月預算 */}
+        <div className="mb-6">
+          <label className="block text-xs mb-1" style={{ color: "var(--text-muted)" }}>每月預算（選填）</label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color: "var(--text-muted)" }}>NT$</span>
+            <input
+              type="number"
+              min="0"
+              className="w-full pl-10 pr-3 py-2.5 rounded-xl text-sm outline-none"
+              style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
+              placeholder="不設定則不顯示預算警示"
+              value={monthlyBudget} onChange={e => setMonthlyBudget(e.target.value)}
+            />
+          </div>
+        </div>
         <motion.button
           whileTap={{ scale: 0.97 }} onClick={handleSave} disabled={pending || !name.trim()}
           className="w-full h-12 rounded-2xl font-semibold text-sm"

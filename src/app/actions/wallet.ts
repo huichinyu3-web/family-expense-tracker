@@ -76,6 +76,7 @@ export async function createWallet(data: {
   initialBalance?: number;
   currency?: string;
   isSplitEnabled?: boolean;
+  monthlyBudget?: number | null;
 }) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Unauthorized");
@@ -103,6 +104,7 @@ export async function createWallet(data: {
     ownerId: userId, // 記錄創建者，讓創建者也能管理自己建的 CUSTOM 帳簿
     currency: data.currency || "TWD",
     isSplitEnabled: data.isSplitEnabled || false,
+    monthlyBudget: data.monthlyBudget ?? null,
   });
 
   // 若是 CUSTOM，插入指定成員
@@ -220,6 +222,7 @@ export async function updateWallet(
     memberIds?: string[];
     currency?: string;
     isSplitEnabled?: boolean;
+    monthlyBudget?: number | null;
   }
 ) {
   const session = await auth();
@@ -253,6 +256,7 @@ export async function updateWallet(
       visibility: data.visibility,
       currency: data.currency,
       isSplitEnabled: data.isSplitEnabled,
+      monthlyBudget: data.monthlyBudget ?? null,
     })
     .where(eq(wallets.id, walletId));
 
