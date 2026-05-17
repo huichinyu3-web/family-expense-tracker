@@ -5,12 +5,32 @@ import { db } from "@/lib/db";
 import { transactions, families, familyMembers, categories } from "@/lib/db/schema";
 import { seedCategories } from "@/lib/db/seed-categories";
 import { findOrCreateMerchant } from "./merchant";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or, gt } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import crypto from "crypto";
 
 type RecurringType = "NONE" | "DAILY" | "WORKDAY" | "WEEKLY" | "BIWEEKLY" |
   "MONTHLY" | "BIMONTHLY" | "QUARTERLY" | "SEMIANNUALLY" | "ANNUALLY" | "INSTALLMENT";
+
+// ── 輔助函式：計算下一個日期 ──────────────────────────────────────────
+function getNextRecurringDate(date: Date, type: RecurringType): Date {
+  const nextDate = new Date(date);
+  switch (type) {
+    case "DAILY": nextDate.setDate(nextDate.getDate() + 1); break;
+    case "WORKDAY": 
+      do { nextDate.setDate(nextDate.getDate() + 1); } while (nextDate.getDay() === 0 || nextDate.getDay() === 6);
+      break;
+    case "WEEKLY": nextDate.setDate(nextDate.getDate() + 7); break;
+    case "BIWEEKLY": nextDate.setDate(nextDate.getDate() + 14); break;
+    case "MONTHLY": nextDate.setMonth(nextDate.getMonth() + 1); break;
+    case "BIMONTHLY": nextDate.setMonth(nextDate.getMonth() + 2); break;
+    case "QUARTERLY": nextDate.setMonth(nextDate.getMonth() + 3); break;
+    case "SEMIANNUALLY": nextDate.setMonth(nextDate.getMonth() + 6); break;
+    case "ANNUALLY": nextDate.setFullYear(nextDate.getFullYear() + 1); break;
+    default: break;
+  }
+  return nextDate;
+}
 
 // ── 確保使用者有 Family，沒有就自動建立 ──────────────────────────────
 export async function ensureFamily(userId: string): Promise<string> {
@@ -36,13 +56,14 @@ export async function ensureFamily(userId: string): Promise<string> {
 export async function addTransaction(data: {
   amount: number;
   type: "EXPENSE" | "INCOME";
-  categoryId: string;           // 現在接受細項的真實 ID
+  categoryId: string;           
   note?: string;
-  date?: number;                // Unix ms，預設今天
+  date?: number;                
   walletId?: string;
-  merchantName?: string;        // 輸入商家名稱，後端自動建立或對應
+  merchantName?: string;        
   recurringType?: RecurringType;
-  installments?: number;        // 分期總期數
+  installments?: number;        
+  recurringEndDate?: number;    // 週期截止日期
   currency?: string;
   paidByUserId?: string;
 }) {
@@ -61,7 +82,7 @@ export async function addTransaction(data: {
     merchantId = merchant.id;
   }
 
-  // 若是分期，建立多筆明細
+  // 處理分期付款
   if (data.recurringType === "INSTALLMENT" && data.installments && data.installments > 1) {
     const parentId = crypto.randomUUID();
     const perAmount = data.amount / data.installments;
@@ -92,8 +113,42 @@ export async function addTransaction(data: {
     }
 
     await db.insert(transactions).values(rows);
+
+  } else if (data.recurringType && data.recurringType !== "NONE" && data.recurringEndDate) {
+    // 處理一次性展開的週期性帳目
+    const parentId = crypto.randomUUID();
+    const rows = [];
+    let currentDate = new Date(txDate);
+    const endDate = new Date(data.recurringEndDate);
+    let index = 1;
+
+    // 防止無窮迴圈，最多展開 1000 筆 (大約每日記帳近 3 年)
+    while (currentDate.getTime() <= endDate.getTime() && rows.length < 1000) {
+      rows.push({
+        id: rows.length === 0 ? parentId : crypto.randomUUID(),
+        familyId,
+        userId,
+        categoryId: data.categoryId,
+        amount,
+        type: data.type,
+        date: currentDate.getTime(),
+        note: data.note ?? null,
+        walletId: data.walletId ?? null,
+        merchantId,
+        recurringType: data.recurringType,
+        parentId: rows.length === 0 ? null : parentId,
+        currency: data.currency ?? "TWD",
+        paidByUserId: data.paidByUserId ?? userId,
+      });
+      currentDate = getNextRecurringDate(currentDate, data.recurringType);
+      index++;
+    }
+
+    if (rows.length > 0) {
+      await db.insert(transactions).values(rows);
+    }
   } else {
-    // 一般或週期性單筆
+    // 一般單筆
     await db.insert(transactions).values({
       id: crypto.randomUUID(),
       familyId,
@@ -105,7 +160,7 @@ export async function addTransaction(data: {
       note: data.note ?? null,
       walletId: data.walletId ?? null,
       merchantId,
-      recurringType: data.recurringType ?? "NONE",
+      recurringType: "NONE",
       currency: data.currency ?? "TWD",
       paidByUserId: data.paidByUserId ?? userId,
     });
@@ -218,8 +273,10 @@ export async function updateTransaction(
     merchantName?: string;
     recurringType?: RecurringType;
     installments?: number;
+    recurringEndDate?: number;
     currency?: string;
     paidByUserId?: string;
+    updateMode?: "SINGLE" | "FUTURE"; // 單筆修改或連動未來
   }
 ) {
   const session = await auth();
@@ -240,19 +297,80 @@ export async function updateTransaction(
     merchantId = merchant.id;
   }
 
-  // 目前編輯功能只支援修改該筆單筆紀錄（若是分期付款，也只改這單筆，不連動）
-  await db.update(transactions).set({
-    categoryId: data.categoryId,
-    amount,
-    type: data.type,
-    date: data.date ?? tx.date,
-    note: data.note ?? null,
-    walletId: data.walletId ?? null,
-    merchantId,
-    recurringType: data.recurringType ?? tx.recurringType,
-    currency: data.currency ?? tx.currency,
-    paidByUserId: data.paidByUserId ?? tx.paidByUserId,
-  }).where(eq(transactions.id, transactionId));
+  const txDate = data.date ?? tx.date;
+  const targetRecurringType = data.recurringType ?? tx.recurringType;
+
+  if (data.updateMode === "FUTURE" && tx.recurringType !== "INSTALLMENT") {
+    // 智慧覆蓋模式：刪除未來舊有帳目，重新展開
+    const rootParentId = tx.parentId || tx.id;
+    
+    // 1. 先更新當前這筆
+    await db.update(transactions).set({
+      categoryId: data.categoryId,
+      amount,
+      type: data.type,
+      date: txDate,
+      note: data.note ?? null,
+      walletId: data.walletId ?? null,
+      merchantId,
+      recurringType: targetRecurringType,
+      currency: data.currency ?? tx.currency,
+      paidByUserId: data.paidByUserId ?? tx.paidByUserId,
+    }).where(eq(transactions.id, transactionId));
+
+    // 2. 刪除「同個父系列」且「時間嚴格大於原本交易時間」的所有舊分身
+    await db.delete(transactions).where(
+      and(
+        or(eq(transactions.parentId, rootParentId), eq(transactions.id, rootParentId)),
+        gt(transactions.date, tx.date)
+      )
+    );
+
+    // 3. 重新推算未來的帳目並寫入
+    if (targetRecurringType && targetRecurringType !== "NONE" && data.recurringEndDate) {
+      const rows = [];
+      let currentDate = getNextRecurringDate(new Date(txDate), targetRecurringType);
+      const endDate = new Date(data.recurringEndDate);
+      
+      while (currentDate.getTime() <= endDate.getTime() && rows.length < 1000) {
+        rows.push({
+          id: crypto.randomUUID(),
+          familyId: tx.familyId,
+          userId: tx.userId,
+          categoryId: data.categoryId,
+          amount,
+          type: data.type,
+          date: currentDate.getTime(),
+          note: data.note ?? null,
+          walletId: data.walletId ?? null,
+          merchantId,
+          recurringType: targetRecurringType,
+          parentId: rootParentId,
+          currency: data.currency ?? tx.currency,
+          paidByUserId: data.paidByUserId ?? tx.paidByUserId,
+        });
+        currentDate = getNextRecurringDate(currentDate, targetRecurringType);
+      }
+      
+      if (rows.length > 0) {
+        await db.insert(transactions).values(rows);
+      }
+    }
+  } else {
+    // 一般單筆修改
+    await db.update(transactions).set({
+      categoryId: data.categoryId,
+      amount,
+      type: data.type,
+      date: txDate,
+      note: data.note ?? null,
+      walletId: data.walletId ?? null,
+      merchantId,
+      recurringType: targetRecurringType,
+      currency: data.currency ?? tx.currency,
+      paidByUserId: data.paidByUserId ?? tx.paidByUserId,
+    }).where(eq(transactions.id, transactionId));
+  }
 
   revalidatePath("/dashboard");
   revalidatePath("/transactions");

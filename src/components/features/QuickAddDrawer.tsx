@@ -28,6 +28,10 @@ const RECURRING_OPTIONS = [
   { value: "WEEKLY", label: "每週" },
   { value: "BIWEEKLY", label: "每雙週" },
   { value: "MONTHLY", label: "每月" },
+  { value: "BIMONTHLY", label: "每2個月" },
+  { value: "QUARTERLY", label: "每季(3個月)" },
+  { value: "SEMIANNUALLY", label: "每半年" },
+  { value: "ANNUALLY", label: "每年" },
   { value: "INSTALLMENT", label: "分期付款" },
 ];
 
@@ -137,6 +141,7 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
   const [merchantInput, setMerchantInput] = useState("");
   const [recurringType, setRecurringType] = useState("NONE");
   const [installments, setInstallments] = useState(3);
+  const [recurringEndDate, setRecurringEndDate] = useState<string>("");
   const [note, setNote] = useState("");
   const [paidByUserId, setPaidByUserId] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
@@ -180,6 +185,7 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
           setSelectedDate(`${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`);
           setMerchantInput(editData.merchant?.name || "");
           setRecurringType(editData.recurringType || "NONE");
+          setRecurringEndDate("");
           setNote(editData.note || "");
           setPaidByUserId(editData.paidByUserId || null);
         } else {
@@ -202,7 +208,7 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
       setNote(""); setSubmitted(false); setType("EXPENSE");
       setActivePanel("numpad"); setDrillParentId(null); setAddingChildFor(null);
       setMerchantInput(""); setNewChildName(""); setNewChildIcon("📦");
-      setRecurringType("NONE");
+      setRecurringType("NONE"); setRecurringEndDate("");
       setPaidByUserId(session?.user?.id || null);
       setSelectedDate(new Date().toISOString().split("T")[0]);
       setTxCurrency(null);
@@ -257,30 +263,53 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
 
   const handleSubmit = async () => {
     if (!canSubmit || submitted || isPending) return;
-    
+
+    if (recurringType !== "NONE" && recurringType !== "INSTALLMENT" && !recurringEndDate) {
+      toast.error("請設定週期截止日期", { style: { background: "#f43f5e", color: "white" }});
+      setActivePanel("recurring");
+      return;
+    }
+
+    if (editData && editData.recurringType !== "NONE" && editData.recurringType !== "INSTALLMENT" && editData.parentId) {
+      const mode = window.confirm("此為週期性帳目，您要將修改套用到未來的帳目嗎？\n\n[確定]：智慧覆蓋模式 (修改此筆並重新展開未來帳目)\n[取消]：單筆修改 (僅修改此筆)") ? "FUTURE" : "SINGLE";
+      
+      if (mode === "FUTURE" && !recurringEndDate) {
+         toast.error("智慧覆蓋模式需指定新的截止日期", { style: { background: "#f43f5e", color: "white" }});
+         setActivePanel("recurring");
+         return;
+      }
+      await proceedSubmit(mode);
+    } else {
+      await proceedSubmit();
+    }
+  };
+
+  const proceedSubmit = async (updateMode?: "SINGLE" | "FUTURE") => {
     startTransition(async () => {
       setSubmitted(true);
       try {
-      const ts = new Date(selectedDate).getTime() + (new Date().getTime() % 86400000);
-      const dataToSave = { 
-        type, 
-        amount: finalAmount, 
-        categoryId: selectedChild!, 
-        date: ts, 
-        note, 
-        walletId: selectedWalletId || undefined, 
-        merchantName: merchantInput,
-        recurringType: recurringType as any,
-        installments: recurringType === "INSTALLMENT" ? installments : undefined,
-        currency: txCurrency || selectedWallet?.currency || "TWD",
-        paidByUserId: (selectedWallet?.isSplitEnabled && paidByUserId) ? paidByUserId : undefined
-      };
+        const ts = new Date(selectedDate).getTime() + (new Date().getTime() % 86400000);
+        const dataToSave = { 
+          type, 
+          amount: finalAmount, 
+          categoryId: selectedChild!, 
+          date: ts, 
+          note, 
+          walletId: selectedWalletId || undefined, 
+          merchantName: merchantInput,
+          recurringType: recurringType as any,
+          installments: recurringType === "INSTALLMENT" ? installments : undefined,
+          recurringEndDate: recurringEndDate ? new Date(recurringEndDate).getTime() : undefined,
+          currency: txCurrency || selectedWallet?.currency || "TWD",
+          paidByUserId: (selectedWallet?.isSplitEnabled && paidByUserId) ? paidByUserId : undefined,
+          updateMode
+        };
 
-      if (editData) {
-        await updateTransaction(editData.id, dataToSave);
-      } else {
-        await addTransaction(dataToSave);
-      }
+        if (editData) {
+          await updateTransaction(editData.id, dataToSave);
+        } else {
+          await addTransaction(dataToSave);
+        }
         
         router.refresh();
         getAccessibleWallets().then(w => setWallets(w as WalletItem[]));
@@ -288,7 +317,7 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
           style: { background: "#10b981", color: "white", border: "none" }
         });
         triggerHaptic();
-        setTimeout(() => handleClose(), 800); // 稍微加長讓打勾動畫顯示久一點
+        setTimeout(() => handleClose(), 800); 
       } catch (e) {
         console.error(e);
         setSubmitted(false);
@@ -628,7 +657,10 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
                   <div className="p-5">
                     <div className="flex flex-wrap gap-2">
                       {RECURRING_OPTIONS.map(opt => (
-                        <button key={opt.value} onClick={() => { setRecurringType(opt.value); if(opt.value!=="INSTALLMENT") setActivePanel("numpad"); }}
+                        <button key={opt.value} onClick={() => { 
+                          setRecurringType(opt.value); 
+                          if(opt.value === "NONE") setActivePanel("numpad"); 
+                        }}
                           className="px-4 py-2.5 rounded-xl text-sm font-bold"
                           style={{ background: recurringType === opt.value ? "rgba(99,102,241,0.2)" : "var(--bg-surface)", color: recurringType === opt.value ? "#6366f1" : "var(--text-secondary)", border: "1px solid var(--border)" }}>
                           {opt.label}
@@ -636,14 +668,24 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
                       ))}
                     </div>
                     {recurringType === "INSTALLMENT" && (
-                      <div className="mt-6 flex items-center justify-between p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
-                        <span className="text-base font-bold text-[var(--text-primary)]">分期總期數</span>
-                        <div className="flex items-center gap-3">
-                          <button onClick={() => setInstallments(n => Math.max(2,n-1))} className="w-12 h-12 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] text-2xl font-bold">-</button>
-                          <span className="text-2xl font-bold w-10 text-center">{installments}</span>
-                          <button onClick={() => setInstallments(n => Math.min(36,n+1))} className="w-12 h-12 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] text-2xl font-bold">+</button>
+                      <div className="mt-6 flex flex-col gap-4 p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+                        <div className="flex items-center justify-between">
+                          <span className="text-base font-bold text-[var(--text-primary)]">分期總期數</span>
+                          <div className="flex items-center gap-3">
+                            <button onClick={() => setInstallments(n => Math.max(2,n-1))} className="w-12 h-12 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] text-2xl font-bold">-</button>
+                            <span className="text-2xl font-bold w-10 text-center">{installments}</span>
+                            <button onClick={() => setInstallments(n => Math.min(36,n+1))} className="w-12 h-12 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] text-2xl font-bold">+</button>
+                          </div>
                         </div>
-                        <button onClick={() => setActivePanel("numpad")} className="px-5 py-3 rounded-xl text-base font-bold bg-indigo-500 text-white">設定</button>
+                        <button onClick={() => setActivePanel("numpad")} className="w-full py-3 rounded-xl text-base font-bold bg-indigo-500 text-white mt-2">設定完成</button>
+                      </div>
+                    )}
+                    {recurringType !== "NONE" && recurringType !== "INSTALLMENT" && (
+                      <div className="mt-6 flex flex-col gap-4 p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
+                        <span className="text-base font-bold text-[var(--text-primary)]">設定截止日期</span>
+                        <input type="date" value={recurringEndDate} onChange={e => setRecurringEndDate(e.target.value)}
+                          className="w-full px-4 py-3 rounded-xl text-base outline-none bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-primary)]" />
+                        <button onClick={() => setActivePanel("numpad")} className="w-full py-3 rounded-xl text-base font-bold bg-indigo-500 text-white mt-2">設定完成</button>
                       </div>
                     )}
                   </div>
