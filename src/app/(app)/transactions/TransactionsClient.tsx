@@ -47,7 +47,7 @@ function formatDate(dateStr: string) {
 export default function TransactionsClient({ initialData, wallets, currentUserId }: { initialData: any[]; wallets: any[]; currentUserId: string | undefined }) {
   const router = useRouter();
   const [search, setSearch]       = useState("");
-  const [member, setMember]       = useState("全部");
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [typeFilter, setTypeFilter] = useState("全部");
   const [walletFilter, setWalletFilter] = useState("ALL");
   const [showFilter, setShowFilter] = useState(false);
@@ -61,7 +61,7 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
   const [maxAmount, setMaxAmount] = useState("");
 
   // 動態提取選項
-  const MEMBERS = ["全部", ...Array.from(new Set(initialData.map(t => t.user?.name).filter(Boolean)))];
+  const MEMBERS = Array.from(new Set(initialData.map(t => t.user?.name).filter(Boolean))) as string[];
   const CATEGORIES = ["全部", ...Array.from(new Set(initialData.map(t => t.category?.name).filter(Boolean)))];
   const MERCHANTS = ["全部", ...Array.from(new Set(initialData.map(t => t.merchant?.name).filter(Boolean)))];
 
@@ -74,7 +74,7 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
   const filtered = initialData.filter(tx => {
     const searchTarget = `${tx.category?.name} ${tx.merchant?.name || ""} ${tx.note || ""}`;
     const matchSearch = searchTarget.includes(search);
-    const matchMember = member === "全部" || tx.user?.name === member;
+    const matchMember = selectedMembers.length === 0 || selectedMembers.includes(tx.user?.name);
     const matchType   = typeFilter === "全部"
       || (typeFilter === "支出" && tx.type === "EXPENSE")
       || (typeFilter === "收入" && tx.type === "INCOME");
@@ -194,20 +194,27 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
             </div>
           </div>
 
-          {/* 成員 */}
-          <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>成員</p>
+          {/* 成員 (多選) */}
+          <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>成員 (多選)</p>
           <div className="flex gap-2 mb-4 overflow-x-auto custom-scrollbar pb-1">
-            {(MEMBERS as string[]).map(m => (
-              <button key={m} onClick={() => setMember(m)}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex-shrink-0"
-                style={{
-                  background: member === m ? "rgba(99,102,241,0.2)" : "var(--bg-card)",
-                  color: member === m ? "#6366f1" : "var(--text-secondary)",
-                  border: member === m ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
-                }}>
-                {m}
-              </button>
-            ))}
+            {(MEMBERS as string[]).map(m => {
+              const isSelected = selectedMembers.includes(m);
+              return (
+                <button key={m} onClick={() => {
+                  setSelectedMembers(prev => 
+                    isSelected ? prev.filter(x => x !== m) : [...prev, m]
+                  );
+                }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex-shrink-0"
+                  style={{
+                    background: isSelected ? "rgba(99,102,241,0.2)" : "var(--bg-card)",
+                    color: isSelected ? "#6366f1" : "var(--text-secondary)",
+                    border: isSelected ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
+                  }}>
+                  {m}
+                </button>
+              );
+            })}
           </div>
 
           {/* 分類 */}
@@ -277,7 +284,7 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
           {/* 清除按鈕 */}
           <div className="flex justify-end pt-2 border-t border-[var(--border)] mt-2">
             <button onClick={() => {
-              setStartDate(""); setEndDate(""); setMember("全部"); setCategoryFilter("全部"); 
+              setStartDate(""); setEndDate(""); setSelectedMembers([]); setCategoryFilter("全部"); 
               setMerchantFilter("全部"); setTypeFilter("全部"); setMinAmount(""); setMaxAmount("");
             }} className="text-xs font-bold text-rose-500 bg-rose-500/10 px-4 py-2 rounded-lg">
               清除所有篩選

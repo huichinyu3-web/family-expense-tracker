@@ -388,7 +388,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
           {/* 清除按鈕 */}
           <div className="flex justify-end pt-2 border-t border-[var(--border)] mt-2">
             <button onClick={() => {
-              setStartDate(""); setEndDate(""); setMember("全部"); setCategoryFilter("全部"); 
+              setStartDate(""); setEndDate(""); setSelectedMembers([]); setCategoryFilter("全部"); 
               setMerchantFilter("全部"); setTypeFilter("全部"); setMinAmount(""); setMaxAmount("");
               setSearch("");
             }} className="text-xs font-bold text-rose-500 bg-rose-500/10 px-4 py-2 rounded-lg">
