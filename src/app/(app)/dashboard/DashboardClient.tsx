@@ -151,8 +151,13 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
     });
   }, [transactions, monthIdx, year, selectedWallets, selectedMembers, typeFilter, categoryFilter, merchantFilter, minAmount, maxAmount, startDate, endDate, search]);
 
-  const totalExpense = filteredTx.filter((tx: any) => tx.type === "EXPENSE").reduce((sum: number, tx: any) => sum + Math.abs(tx.amount), 0);
+  const expenses = filteredTx.filter((tx: any) => tx.type === "EXPENSE");
+  const totalExpense = expenses.reduce((sum: number, tx: any) => sum + Math.abs(tx.amount), 0);
   const totalIncome = filteredTx.filter((tx: any) => tx.type === "INCOME").reduce((sum: number, tx: any) => sum + tx.amount, 0);
+  
+  // 計算已付與待付 (以今日為分界)
+  const pastExpense = expenses.filter((tx: any) => tx.date <= now.getTime()).reduce((sum: number, tx: any) => sum + Math.abs(tx.amount), 0);
+  const futureExpense = expenses.filter((tx: any) => tx.date > now.getTime()).reduce((sum: number, tx: any) => sum + Math.abs(tx.amount), 0);
   
   // 若只選了一個帳簿，才顯示拆帳/詳細餘額等資訊
   const selectedWallet = selectedWallets.length === 1 ? wallets.find((w: any) => w.id === selectedWallets[0]) : null;
@@ -558,9 +563,16 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
 
         {/* 預算或收支進度條 */}
         <div className="mt-4">
-          <div className="flex justify-between text-xs mb-2" style={{ color: "var(--text-muted)" }}>
-            <span>{selectedWallet ? "本月支出" : "已花費"} NT${totalExpense.toLocaleString()}</span>
-            <span>{selectedWallet ? "本月收入" : "預算"} {effectiveBudget != null ? `NT$${effectiveBudget.toLocaleString()}` : (selectedWallet ? `NT$${totalIncome.toLocaleString()}` : "未設定")}</span>
+          <div className="flex justify-between items-end text-xs mb-2" style={{ color: "var(--text-muted)" }}>
+            <span className="flex flex-col gap-0.5 text-left">
+              <span>{selectedWallet ? "預估總支出" : "預估總花費"} <span className="font-semibold text-[var(--text-primary)]">NT${totalExpense.toLocaleString()}</span></span>
+              {(futureExpense > 0) && (
+                <span className="text-[10px] opacity-80">已付 ${pastExpense.toLocaleString()} / 待付 ${futureExpense.toLocaleString()}</span>
+              )}
+            </span>
+            <span className="text-right">
+              <span>{selectedWallet ? "本月收入" : "設定預算"} <span className="font-semibold text-[var(--text-primary)]">{effectiveBudget != null ? `NT$${effectiveBudget.toLocaleString()}` : (selectedWallet ? `NT$${totalIncome.toLocaleString()}` : "未設定")}</span></span>
+            </span>
           </div>
           {!selectedWallet && (
             <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-card)" }}>
