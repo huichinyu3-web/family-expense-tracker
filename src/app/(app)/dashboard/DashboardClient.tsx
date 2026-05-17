@@ -11,7 +11,7 @@ import { AnimatePresence } from "framer-motion";
 import QuickAddDrawer from "@/components/features/QuickAddDrawer";
 import SettlementModal from "@/components/features/SettlementModal";
 
-const CHART_COLORS = ["#6366f1", "#f1f5f9"];
+const CHART_COLORS = ["#f43f5e", "#10b981"];
 const MONTHS = ["一月","二月","三月","四月","五月","六月","七月","八月","九月","十月","十一月","十二月"];
 const TYPES    = ["全部", "支出", "收入"];
 
@@ -199,14 +199,10 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
   const currentBalance = pastIncome - pastExpense;
   const spentPct = effectiveBudget != null ? Math.min((totalExpense / effectiveBudget) * 100, 100) : 0;
 
-  // 圓餅圖：呈現預估總花費與可用預算/剩餘空間的對比
-  const remainingBudgetOrSavings = effectiveBudget != null 
-    ? Math.max(effectiveBudget - totalExpense, 0) 
-    : Math.max(totalIncome - totalExpense, 0);
-
+  // 圓餅圖：只呈現「本月已付支出」與「本月已收收入」
   const CHART_DATA = [
-    { name: "預估總支出", value: totalExpense },
-    { name: "可用預算/盈餘", value: remainingBudgetOrSavings || 1 },
+    { name: "已付支出", value: pastExpense },
+    { name: "已收收入", value: pastIncome || (pastExpense === 0 ? 1 : 0) },
   ];
 
   // ── 1. 分類支出排行 (Top Categories Breakdown) ──
