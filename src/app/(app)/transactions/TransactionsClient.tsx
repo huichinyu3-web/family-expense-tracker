@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useTransition } from "react";
-import { Search, SlidersHorizontal, TrendingDown, TrendingUp, X, Edit2, Trash2 } from "lucide-react";
+import { Search, SlidersHorizontal, TrendingDown, TrendingUp, X, Edit2, Trash2, ArrowLeft, ArrowRight } from "lucide-react";
 import { deleteTransaction } from "@/app/actions/transaction";
 import { useRouter } from "next/navigation";
 import QuickAddDrawer from "@/components/features/QuickAddDrawer";
@@ -53,8 +53,9 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
   const [showFilter, setShowFilter] = useState(false);
 
   // 進階篩選狀態
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const todayStr = new Date().toISOString().split("T")[0];
+  const [startDate, setStartDate] = useState(todayStr);
+  const [endDate, setEndDate] = useState(todayStr);
   const [categoryFilter, setCategoryFilter] = useState("全部");
   const [merchantFilter, setMerchantFilter] = useState("全部");
   const [minAmount, setMinAmount] = useState("");
@@ -70,6 +71,30 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
   const [editTxData, setEditTxData] = useState<any>(null);
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  const handlePrevDay = () => {
+    const current = startDate || new Date().toISOString().split("T")[0];
+    const d = new Date(current);
+    d.setDate(d.getDate() - 1);
+    const newDate = d.toISOString().split("T")[0];
+    setStartDate(newDate);
+    setEndDate(newDate);
+  };
+
+  const handleNextDay = () => {
+    const current = endDate || new Date().toISOString().split("T")[0];
+    const d = new Date(current);
+    d.setDate(d.getDate() + 1);
+    const newDate = d.toISOString().split("T")[0];
+    setStartDate(newDate);
+    setEndDate(newDate);
+  };
+
+  const handleToday = () => {
+    const today = new Date().toISOString().split("T")[0];
+    setStartDate(today);
+    setEndDate(today);
+  };
 
   const filtered = initialData.filter(tx => {
     const searchTarget = `${tx.category?.name} ${tx.merchant?.name || ""} ${tx.note || ""}`;
@@ -155,6 +180,22 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
         >
           <SlidersHorizontal size={15} color={showFilter ? "#6366f1" : "var(--text-secondary)"} />
         </motion.button>
+      </div>
+
+      {/* ── 快速日期切換列 ── */}
+      <div className="flex justify-between items-center bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-1 mb-4 shadow-sm">
+        <button onClick={handlePrevDay} className="p-2 rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-secondary)] transition-colors">
+          <ArrowLeft size={18} />
+        </button>
+        <button onClick={handleToday} className="flex-1 flex flex-col items-center justify-center py-1">
+          <span className="text-xs font-medium text-[var(--text-muted)] mb-0.5">回到今天</span>
+          <span className="text-sm font-bold text-[var(--text-primary)] tracking-wide">
+            {startDate === endDate && startDate ? startDate.replace(/-/g, "/") : "多日區間"}
+          </span>
+        </button>
+        <button onClick={handleNextDay} className="p-2 rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-secondary)] transition-colors">
+          <ArrowRight size={18} />
+        </button>
       </div>
 
       {/* ── 搜尋列 ── */}

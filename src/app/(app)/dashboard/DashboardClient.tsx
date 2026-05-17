@@ -214,9 +214,9 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
       {/* ── 頂部：標題列與視角切換 ── */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>家庭帳本</p>
+          <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>早安！</p>
           <h1 className="text-lg font-bold truncate max-w-[150px]" style={{ color: "var(--text-primary)" }}>
-            {familyName} 👨‍👩‍👧
+            {userName} 👤
           </h1>
         </div>
         
