@@ -555,9 +555,13 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
               className="text-2xl font-bold"
               style={{ color: currentBalance >= 0 ? "#10b981" : "#f43f5e" }}
             />
-            {effectiveBudget != null && (
+            {currentBalance >= 0 ? (
               <p className="text-[10px] mt-0.5 opacity-80" style={{ color: "var(--text-muted)" }}>
-                已用預算 {spentPct.toFixed(0)}%
+                已存 {pastIncome > 0 ? ((currentBalance / pastIncome) * 100).toFixed(0) : 0}%
+              </p>
+            ) : (
+              <p className="text-[10px] mt-0.5 font-bold animate-pulse" style={{ color: "#f43f5e" }}>
+                已透支！
               </p>
             )}
           </div>
