@@ -43,7 +43,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
   const [isPending, startTransition] = useTransition();
   const [monthIdx, setMonthIdx] = useState(now.getMonth());
   const [year, setYear] = useState(now.getFullYear());
-  const [year, setYear] = useState(now.getFullYear());
+
   const [selectedWalletId, setSelectedWalletId] = useState<string>("ALL");
   const [selectedTx, setSelectedTx] = useState<any>(null);
   const [editTxData, setEditTxData] = useState<any>(null);
