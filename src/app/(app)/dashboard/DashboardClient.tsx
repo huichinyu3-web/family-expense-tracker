@@ -224,12 +224,12 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
     <div className="px-4 pt-6 pb-2 max-w-lg mx-auto">
 
       {/* ── 頂部：標題列與視角切換 ── */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>{getGreeting()}</p>
-          <h1 className="text-lg font-bold truncate max-w-[150px]" style={{ color: "var(--text-primary)" }}>
+          <p className="text-lg font-bold truncate max-w-[150px]" style={{ color: "var(--text-primary)" }}>
             {userName} 👤
-          </h1>
+          </p>
         </div>
         
         {/* 視角切換器與過濾按鈕 */}
@@ -248,6 +248,9 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
           </motion.button>
         </div>
       </div>
+
+      {/* ── 大標題 ── */}
+      <h1 className="text-xl font-bold mb-4" style={{ color: "var(--text-primary)" }}>帳簿總覽</h1>
 
       {/* ── 智能洞察小語 ── */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}

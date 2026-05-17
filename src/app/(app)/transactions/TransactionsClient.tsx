@@ -142,27 +142,6 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
   return (
     <div className="px-4 pt-6 pb-2 max-w-lg mx-auto">
 
-      {/* ── 帳簿過濾選擇器（多選） ── */}
-      <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2 mb-4">
-        {wallets.map((w: any) => {
-          const isSel = selectedWallets.includes(w.id);
-          return (
-            <button key={w.id} onClick={() => setSelectedWallets(prev =>
-              isSel ? prev.filter(x => x !== w.id) : [...prev, w.id]
-            )}
-              className="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
-              style={{
-                background: isSel ? "rgba(16,185,129,0.15)" : "var(--bg-card)",
-                color: isSel ? "#10b981" : "var(--text-secondary)",
-                border: isSel ? "1px solid rgba(16,185,129,0.4)" : "1px solid var(--border)",
-              }}>
-              <span>{w.name}</span>
-            </button>
-          );
-        })}
-
-      </div>
-
       {/* ── 頂部標題 ── */}
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>交易明細</h1>
@@ -193,6 +172,26 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
         <button onClick={handleNextDay} className="p-2 rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-secondary)] transition-colors">
           <ArrowRight size={18} />
         </button>
+      </div>
+
+      {/* ── 帳簿過濾選擇器（多選） ── */}
+      <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2 mb-4">
+        {wallets.map((w: any) => {
+          const isSel = selectedWallets.includes(w.id);
+          return (
+            <button key={w.id} onClick={() => setSelectedWallets(prev =>
+              isSel ? prev.filter(x => x !== w.id) : [...prev, w.id]
+            )}
+              className="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+              style={{
+                background: isSel ? "rgba(16,185,129,0.15)" : "var(--bg-card)",
+                color: isSel ? "#10b981" : "var(--text-secondary)",
+                border: isSel ? "1px solid rgba(16,185,129,0.4)" : "1px solid var(--border)",
+              }}>
+              <span>{w.name}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* ── 搜尋列 ── */}
