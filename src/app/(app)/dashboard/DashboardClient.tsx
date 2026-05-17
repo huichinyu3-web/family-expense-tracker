@@ -3,7 +3,7 @@
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { motion } from "framer-motion";
 import { TrendingDown, TrendingUp, ChevronLeft, ChevronRight, Bell, User, Users, Trash2, Edit2, X, SlidersHorizontal } from "lucide-react";
-import { useState, useMemo, useTransition } from "react";
+import { useState, useMemo, useTransition, useEffect } from "react";
 import { CountUp } from "@/components/ui/CountUp";
 import { deleteTransaction } from "@/app/actions/transaction";
 import { useRouter } from "next/navigation";
@@ -58,6 +58,22 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
   const [editTxData, setEditTxData] = useState<any>(null);
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
   const [showSettlement, setShowSettlement] = useState(false);
+
+  // 極簡新手視覺導覽狀態
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  useEffect(() => {
+    const hasSeen = localStorage.getItem("hasSeenOnboarding_v1");
+    if (!hasSeen) {
+      setShowOnboarding(true);
+    }
+  }, []);
+
+  const handleCloseOnboarding = () => {
+    localStorage.setItem("hasSeenOnboarding_v1", "true");
+    setShowOnboarding(false);
+  };
 
   // 進階篩選狀態
   const [showFilter, setShowFilter] = useState(false);
@@ -208,6 +224,29 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
 
     return { text: "🔥 您已經開始記帳了，繼續保持這個好習慣！", type: "success" };
   }, [selectedWallet, currentBalance, totalExpense, totalIncome, categoryExpenses, spentPct]);
+
+  const onboardingSlides = [
+    {
+      title: "🔒 共享與個人帳簿安全隔離",
+      description: "您可以建立完全屬於自己的『個人帳簿』或與家人共享的『家庭帳簿』。不用擔心，未經授權的成員絕對看不到您的私密帳簿，隱私防護百分百！",
+      color: "from-blue-500/20 to-indigo-500/20"
+    },
+    {
+      title: "⚡ 智能週期帳務展開",
+      description: "水電費、訂閱費、房租等重複開支，只需在記帳時設定『截止日期』，系統會智能自動逐月/逐年寫入。未來變更時更可享受一鍵『智慧覆蓋』！",
+      color: "from-purple-500/20 to-pink-500/20"
+    },
+    {
+      title: "⚖️ 智能拆帳與代墊系統",
+      description: "在共享帳本啟用拆帳後，不管是買菜代墊還是家庭聚餐，記帳時選擇代墊者與分攤成員，系統會自動在總覽頂部精算出『誰欠誰多少錢』，省去算帳煩惱！",
+      color: "from-emerald-500/20 to-teal-500/20"
+    },
+    {
+      title: "📅 日期翻頁與多選篩選",
+      description: "明細頁預設鎖定今日，提供 ◀ ▶ 快速日付切換。多選成員與多選帳簿更能靈活疊加，配合強大的進階搜尋，讓記帳與對帳成為每天極致流暢的享受！",
+      color: "from-amber-500/20 to-orange-500/20"
+    }
+  ];
 
   const recentTx = filteredTx.slice(0, 5);
 
@@ -765,6 +804,117 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
             currentUserId={currentUserId}
             onClose={() => setShowSettlement(false)}
           />
+        )}
+      </AnimatePresence>
+
+      {/* ── 首次登入極簡新手視覺導覽 ── */}
+      <AnimatePresence>
+        {showOnboarding && (
+          <>
+            {/* 遮罩 */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={handleCloseOnboarding}
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md"
+            />
+            {/* Modal 容器 */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed inset-x-4 top-1/2 -translate-y-1/2 md:max-w-md md:mx-auto z-50 overflow-hidden bg-[var(--bg-surface)] border border-[var(--border)] rounded-3xl shadow-[0_0_50px_0_rgba(99,102,241,0.25)] flex flex-col"
+            >
+              {/* 頂部裝飾背景 */}
+              <div className={`h-28 bg-gradient-to-tr ${onboardingSlides[currentSlide].color} relative flex items-center justify-center transition-all duration-500`}>
+                <div className="absolute top-4 right-4">
+                  <button onClick={handleCloseOnboarding} className="p-1.5 bg-black/10 hover:bg-black/20 rounded-full text-white/80 transition-colors">
+                    <X size={16} />
+                  </button>
+                </div>
+                {/* 裝飾大圖示或文字 */}
+                <span className="text-4xl filter drop-shadow-md">
+                  {currentSlide === 0 ? "🔒" : currentSlide === 1 ? "🔁" : currentSlide === 2 ? "⚖️" : "🚀"}
+                </span>
+              </div>
+
+              {/* 內容區 */}
+              <div className="p-6 flex-1 flex flex-col justify-between">
+                <div className="min-h-[140px]">
+                  <motion.h2 
+                    key={`t-${currentSlide}`}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="text-lg font-bold mb-3 text-[var(--text-primary)]"
+                  >
+                    {onboardingSlides[currentSlide].title}
+                  </motion.h2>
+                  <motion.p 
+                    key={`d-${currentSlide}`}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="text-xs leading-relaxed text-[var(--text-secondary)]"
+                  >
+                    {onboardingSlides[currentSlide].description}
+                  </motion.p>
+                </div>
+
+                {/* 控制與點點導航 */}
+                <div className="mt-8 flex flex-col gap-4">
+                  {/* 點點進度指示器 */}
+                  <div className="flex justify-center gap-1.5">
+                    {onboardingSlides.map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setCurrentSlide(i)}
+                        className={`h-1.5 rounded-full transition-all duration-300 ${i === currentSlide ? "w-4 bg-[#6366f1]" : "w-1.5 bg-[var(--border)]"}`}
+                      />
+                    ))}
+                  </div>
+
+                  {/* 按鈕組 */}
+                  <div className="flex justify-between items-center gap-3">
+                    <button
+                      onClick={handleCloseOnboarding}
+                      className="text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-primary)] px-4 py-2 transition-colors"
+                    >
+                      跳過引導
+                    </button>
+                    
+                    <div className="flex gap-2">
+                      {currentSlide > 0 && (
+                        <button
+                          onClick={() => setCurrentSlide(prev => prev - 1)}
+                          className="px-4 py-2 text-xs font-bold rounded-xl bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] transition-all"
+                        >
+                          上一步
+                        </button>
+                      )}
+                      
+                      {currentSlide < onboardingSlides.length - 1 ? (
+                        <button
+                          onClick={() => setCurrentSlide(prev => prev + 1)}
+                          className="px-5 py-2 text-xs font-bold rounded-xl bg-[#6366f1] text-white hover:opacity-90 transition-all shadow-[0_4px_12px_rgba(99,102,241,0.3)]"
+                        >
+                          下一步
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleCloseOnboarding}
+                          className="px-5 py-2 text-xs font-bold rounded-xl bg-emerald-500 text-white hover:opacity-90 transition-all shadow-[0_4px_12px_rgba(16,185,129,0.3)]"
+                        >
+                          開始使用 ✨
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 
