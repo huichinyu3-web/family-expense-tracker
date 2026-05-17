@@ -98,31 +98,7 @@ function LoginClient() {
           使用 Google 帳號登入
         </motion.button>
 
-        {/* 分隔線 */}
-        <div className="flex items-center gap-3 my-1">
-          <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>或</span>
-          <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
-        </div>
-
-        {/* 生物辨識 */}
-        <motion.button whileTap={{ scale: 0.97 }}
-          onClick={() => signIn("webauthn", { callbackUrl })}
-          className="btn-primary flex items-center justify-center gap-3 w-full py-3.5 text-sm"
-          style={{ boxShadow: "var(--shadow-glow)" }}>
-          <Fingerprint size={20} />
-          指紋 / 臉部辨識快速登入
-        </motion.button>
-
-        <p className="text-xs text-center mt-2" style={{ color: "var(--text-muted)" }}>
-          支援 Face ID、Touch ID、Windows Hello
-        </p>
       </motion.div>
-
-      <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
-        className="mt-8 text-xs text-center" style={{ color: "var(--text-muted)" }}>
-        您的生物特徵永不離開裝置，安全有保障
-      </motion.p>
     </main>
   );
 }
