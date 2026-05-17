@@ -153,12 +153,17 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
 
   const expenses = filteredTx.filter((tx: any) => tx.type === "EXPENSE");
   const totalExpense = expenses.reduce((sum: number, tx: any) => sum + Math.abs(tx.amount), 0);
-  const totalIncome = filteredTx.filter((tx: any) => tx.type === "INCOME").reduce((sum: number, tx: any) => sum + tx.amount, 0);
+  const incomes = filteredTx.filter((tx: any) => tx.type === "INCOME");
+  const totalIncome = incomes.reduce((sum: number, tx: any) => sum + tx.amount, 0);
   
   // 計算已付與待付 (以今日為分界)
   const pastExpense = expenses.filter((tx: any) => tx.date <= now.getTime()).reduce((sum: number, tx: any) => sum + Math.abs(tx.amount), 0);
   const futureExpense = expenses.filter((tx: any) => tx.date > now.getTime()).reduce((sum: number, tx: any) => sum + Math.abs(tx.amount), 0);
   
+  // 計算已收與待收 (以今日為分界)
+  const pastIncome = incomes.filter((tx: any) => tx.date <= now.getTime()).reduce((sum: number, tx: any) => sum + tx.amount, 0);
+  const futureIncome = incomes.filter((tx: any) => tx.date > now.getTime()).reduce((sum: number, tx: any) => sum + tx.amount, 0);
+
   // 若只選了一個帳簿，才顯示拆帳/詳細餘額等資訊
   const selectedWallet = selectedWallets.length === 1 ? wallets.find((w: any) => w.id === selectedWallets[0]) : null;
   
@@ -190,17 +195,18 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
     return total > 0 ? total : null;
   })();
 
-  // 如果選了特定帳簿，中心顯示「該帳簿當前總餘額」；否則顯示合計收支差
-  const currentBalance = selectedWallet ? selectedWallet.balance : (effectiveBudget != null ? effectiveBudget - totalExpense : totalIncome - totalExpense);
+  // 1. 當前餘額強制只算「本月已收 - 本月已付」
+  const currentBalance = pastIncome - pastExpense;
   const spentPct = effectiveBudget != null ? Math.min((totalExpense / effectiveBudget) * 100, 100) : 0;
 
-  // 圓餅圖：如果是單一帳簿，顯示本月的收入與支出比例，如果是全部，顯示預算與已花費
-  const CHART_DATA = selectedWallet ? [
-    { name: "本月支出", value: totalExpense },
-    { name: "本月收入", value: totalIncome || 1 }, // 避免 0 造成無法繪製
-  ] : [
-    { name: "已花費", value: totalExpense },
-    { name: "剩餘預算", value: Math.max(currentBalance, 0) },
+  // 圓餅圖：呈現預估總花費與可用預算/剩餘空間的對比
+  const remainingBudgetOrSavings = effectiveBudget != null 
+    ? Math.max(effectiveBudget - totalExpense, 0) 
+    : Math.max(totalIncome - totalExpense, 0);
+
+  const CHART_DATA = [
+    { name: "預估總支出", value: totalExpense },
+    { name: "可用預算/盈餘", value: remainingBudgetOrSavings || 1 },
   ];
 
   // ── 1. 分類支出排行 (Top Categories Breakdown) ──
@@ -545,7 +551,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
 
           {/* 圓心文字 */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>{selectedWallet ? "當前總餘額" : "本月剩餘"}</p>
+            <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>當前餘額</p>
             <CountUp
               end={currentBalance}
               prefix="NT$"
@@ -553,9 +559,9 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
               className="text-2xl font-bold"
               style={{ color: currentBalance >= 0 ? "#10b981" : "#f43f5e" }}
             />
-            {!selectedWallet && (
-              <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                已用 {spentPct.toFixed(0)}%
+            {effectiveBudget != null && (
+              <p className="text-[10px] mt-0.5 opacity-80" style={{ color: "var(--text-muted)" }}>
+                已用預算 {spentPct.toFixed(0)}%
               </p>
             )}
           </div>
@@ -565,16 +571,15 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
         <div className="mt-4">
           <div className="flex justify-between items-end text-xs mb-2" style={{ color: "var(--text-muted)" }}>
             <span className="flex flex-col gap-0.5 text-left">
-              <span>{selectedWallet ? "預估總支出" : "預估總花費"} <span className="font-semibold text-[var(--text-primary)]">NT${totalExpense.toLocaleString()}</span></span>
-              {(futureExpense > 0) && (
-                <span className="text-[10px] opacity-80">已付 ${pastExpense.toLocaleString()} / 待付 ${futureExpense.toLocaleString()}</span>
-              )}
+              <span>預估總支出 <span className="font-semibold text-[var(--text-primary)]">NT${totalExpense.toLocaleString()}</span></span>
+              <span className="text-[10px] opacity-80">已付 ${pastExpense.toLocaleString()}{futureExpense > 0 ? ` / 待付 $${futureExpense.toLocaleString()}` : ""}</span>
             </span>
-            <span className="text-right">
-              <span>{selectedWallet ? "本月收入" : "設定預算"} <span className="font-semibold text-[var(--text-primary)]">{effectiveBudget != null ? `NT$${effectiveBudget.toLocaleString()}` : (selectedWallet ? `NT$${totalIncome.toLocaleString()}` : "未設定")}</span></span>
+            <span className="text-right flex flex-col gap-0.5">
+              <span>本月預算 <span className="font-semibold text-[var(--text-primary)]">{effectiveBudget != null ? `NT$${effectiveBudget.toLocaleString()}` : "未設定"}</span></span>
+              <span className="text-[10px] opacity-80">已收 ${pastIncome.toLocaleString()}{futureIncome > 0 ? ` / 待收 $${futureIncome.toLocaleString()}` : ""}</span>
             </span>
           </div>
-          {!selectedWallet && (
+          {effectiveBudget != null ? (
             <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-card)" }}>
               <motion.div
                 initial={{ width: 0 }}
@@ -584,8 +589,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
                 style={{ background: "var(--gradient-primary)" }}
               />
             </div>
-          )}
-          {selectedWallet && (
+          ) : (
             <div className="flex h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-card)" }}>
               <motion.div
                 initial={{ width: 0 }}
