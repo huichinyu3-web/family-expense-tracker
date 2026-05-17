@@ -206,12 +206,22 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
     return targetWalletsForBalance.reduce((sum: number, w: any) => sum + (w.balance || 0), 0);
   })();
 
+  // 3. 歷史累積至今的支出（不限月份，篩選選定的錢包）
+  const allTimeExpense = useMemo(() => {
+    return transactions
+      .filter((tx: any) => {
+        const matchWallet = selectedWallets.length === 0 || selectedWallets.includes(tx.walletId);
+        return tx.type === "EXPENSE" && matchWallet;
+      })
+      .reduce((sum: number, tx: any) => sum + Math.abs(tx.amount), 0);
+  }, [transactions, selectedWallets]);
+
   const spentPct = effectiveBudget != null ? Math.min((totalExpense / effectiveBudget) * 100, 100) : 0;
 
-  // 圓餅圖：紅色為本月已付支出，綠色為當前餘額
+  // 圓餅圖：紅色為歷史累積支出，綠色為當前累積總資產
   const CHART_DATA = [
-    { name: "本月支出", value: pastExpense },
-    { name: "當前餘額", value: Math.max(monthlySavings, 0) || (pastExpense === 0 ? 1 : 0) },
+    { name: "歷史支出", value: allTimeExpense },
+    { name: "當前總資產", value: Math.max(currentBalance, 0) || (allTimeExpense === 0 ? 1 : 0) },
   ];
 
   // ── 1. 分類支出排行 (Top Categories Breakdown) ──
