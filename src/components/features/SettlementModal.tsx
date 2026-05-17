@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
 import { getWalletSettlement } from "@/app/actions/settlement";
@@ -154,7 +154,7 @@ interface SettlementModalProps {
 }
 
 export default function SettlementModal({ walletId, walletName, familyId, currentUserId, onClose }: SettlementModalProps) {
-  const [isPending, startTransition] = useTransition();
+  const [isLoading, setIsLoading] = useState(false);
   const [balances, setBalances] = useState<NetBalance[] | null>(null);
   const [debts, setDebts] = useState<SettlementDebt[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -168,43 +168,41 @@ export default function SettlementModal({ walletId, walletName, familyId, curren
   // 是否包含非 TWD 幣別
   const hasMultiCurrency = currencies.some(c => c !== "TWD");
 
-  const loadSettlement = (rates?: Record<string, string>) => {
+  const loadSettlement = useCallback(async (rates?: Record<string, string>) => {
+    setIsLoading(true);
+    setError(null);
     const numericRates: Record<string, number> = {};
-    const rateSource = rates ?? exchangeRates;
-    Object.entries(rateSource).forEach(([k, v]) => {
+    Object.entries(rates ?? {}).forEach(([k, v]) => {
       const n = parseFloat(v);
       if (!isNaN(n) && n > 0) numericRates[k] = n;
     });
 
-    startTransition(async () => {
-      try {
-        const result = await getWalletSettlement(walletId, numericRates);
-        setBalances(result.balances);
-        setDebts(result.debts);
-        if (result.currencies.length > 0) {
-          setCurrencies(result.currencies);
-          // 首次載入時，對於非 TWD 幣別预就定義常見預設巧率
-          setExchangeRates(prev => {
-            const next = { ...prev };
-            result.currencies.forEach(c => {
-              if (c !== "TWD" && !next[c]) {
-                // 預設巧率參考常見幣別
-                const defaults: Record<string, string> = { JPY: "0.22", USD: "32", EUR: "35", HKD: "4.1", CNY: "4.4", KRW: "0.024", GBP: "40" };
-                next[c] = defaults[c] || "1";
-              }
-            });
-            return next;
+    try {
+      const result = await getWalletSettlement(walletId, numericRates);
+      setBalances(result.balances);
+      setDebts(result.debts);
+      if (result.currencies.length > 0) {
+        setCurrencies(result.currencies);
+        setExchangeRates(prev => {
+          const next = { ...prev };
+          result.currencies.forEach(c => {
+            if (c !== "TWD" && !next[c]) {
+              const defaults: Record<string, string> = { JPY: "0.22", USD: "32", EUR: "35", HKD: "4.1", CNY: "4.4", KRW: "0.024", GBP: "40" };
+              next[c] = defaults[c] || "1";
+            }
           });
-        }
-        if (!hasMultiCurrency || ratesConfirmed) setRatesConfirmed(true);
-      } catch (e: any) {
-        setError(e.message || "載入失敗，請稍後再試");
+          return next;
+        });
       }
-    });
-  };
+    } catch (e: any) {
+      setError(e.message || "載入失敗，請稍後再試");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [walletId]);
 
   // 一進來就自動載入結算資料
-  useEffect(() => { loadSettlement(); }, []);
+  useEffect(() => { loadSettlement(); }, [loadSettlement]);
 
   return (
     <>
@@ -271,7 +269,7 @@ export default function SettlementModal({ walletId, walletName, familyId, curren
         </div>
 
         {/* 幣別匯率設定區 (遇到非 TWD 幣別時顯示) */}
-        {!isPending && hasMultiCurrency && !ratesConfirmed && (
+        {!isLoading && hasMultiCurrency && !ratesConfirmed && (
           <div className="px-5 pb-4">
             <div className="p-4 rounded-2xl" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)" }}>
               <p className="text-sm font-bold mb-1" style={{ color: "#d97706" }}>⚠️ 偵測到多幣別交易</p>
@@ -308,7 +306,7 @@ export default function SettlementModal({ walletId, walletName, familyId, curren
         )}
 
         {/* 已確認匯率後可重新設定 */}
-        {!isPending && hasMultiCurrency && ratesConfirmed && (
+        {!isLoading && hasMultiCurrency && ratesConfirmed && (
           <div className="px-5 pb-2">
             <div className="flex items-center gap-2 flex-wrap">
               {currencies.filter(c => c !== "TWD").map(c => (
@@ -331,7 +329,7 @@ export default function SettlementModal({ walletId, walletName, familyId, curren
         <div className="flex-1 overflow-y-auto px-5 pb-8">
 
           {/* 載入中 */}
-          {isPending && (
+          {isLoading && (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <Loader2 size={28} className="animate-spin" style={{ color: "#6366f1" }} />
               <p className="text-sm" style={{ color: "var(--text-muted)" }}>計算結算路徑中...</p>
@@ -347,7 +345,7 @@ export default function SettlementModal({ walletId, walletName, familyId, curren
           )}
 
           {/* 還款路徑 Tab */}
-          {!isPending && !error && debts && tab === "debts" && (
+          {!isLoading && !error && debts && tab === "debts" && (
             <div className="flex flex-col gap-3">
               {debts.length === 0 ? (
                 <div className="flex flex-col items-center py-12 gap-3">
@@ -370,7 +368,7 @@ export default function SettlementModal({ walletId, walletName, familyId, curren
                       currentUserId={currentUserId}
                       familyId={familyId}
                       walletId={walletId}
-                      onSettled={loadSettlement}
+                      onSettled={() => { loadSettlement(); }}
                     />
                   ))}
                 </>
@@ -379,7 +377,7 @@ export default function SettlementModal({ walletId, walletName, familyId, curren
           )}
 
           {/* 個人餘額 Tab */}
-          {!isPending && !error && balances && tab === "balances" && (
+          {!isLoading && !error && balances && tab === "balances" && (
             <div>
               <p className="text-xs font-semibold py-1 mb-2" style={{ color: "var(--text-muted)" }}>
                 每人的代墊收支狀況
