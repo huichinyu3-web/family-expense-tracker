@@ -77,8 +77,8 @@ function LoginClient() {
           style={{ background: "var(--gradient-primary)", boxShadow: "var(--shadow-glow)" }}>
           <Wallet size={36} color="white" />
         </div>
-        <h1 className="text-3xl font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>家庭記帳本</h1>
-        <p className="mt-2 text-sm" style={{ color: "var(--text-secondary)" }}>與家人一起輕鬆管理每一筆支出</p>
+        <h1 className="text-3xl font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>共享記帳本</h1>
+        <p className="mt-2 text-sm" style={{ color: "var(--text-secondary)" }}>與伴侶、室友、家人一起輕鬆管理每一筆支出</p>
       </motion.div>
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}

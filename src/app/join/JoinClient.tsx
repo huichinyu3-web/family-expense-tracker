@@ -109,7 +109,7 @@ export default function JoinClient() {
             <Users size={32} className="text-indigo-400" />
           </div>
           <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>您收到了邀請！</h2>
-          <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>有人邀請您加入他們的家庭記帳群組</p>
+          <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>有人邀請您加入他們的共享帳簿群組</p>
         </div>
 
         <div className="rounded-2xl p-4 mb-6" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>

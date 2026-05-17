@@ -747,7 +747,7 @@ export default function SettingsClient({
       </div>
 
       <p className="text-center text-xs pb-2" style={{ color: "var(--text-muted)" }}>
-        Family Expense Tracker v0.2.0
+        Shared Expense Tracker v0.2.0
       </p>
 
       {/* ── 新增帳簿 Drawer ── */}

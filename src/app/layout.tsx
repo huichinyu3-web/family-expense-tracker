@@ -13,13 +13,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Family Expense Tracker | 家庭記帳系統",
-  description: "免費、無廣告、具備生物辨識的精品家庭共用記帳系統",
+  title: "共享記帳本 | Shared Expense Tracker",
+  description: "免費、無廣告、具備生物辨識的精品共享協作記帳系統",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "家庭記帳本",
+    title: "共享記帳本",
   },
 };
 
