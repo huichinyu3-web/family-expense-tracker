@@ -224,10 +224,13 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
     <div className="px-4 pt-6 pb-2 max-w-lg mx-auto">
 
       {/* ── 頂部：標題列與視角切換 ── */}
-      <div className="relative flex items-center justify-between mb-6 h-10">
-        {/* 左側：問候語 */}
-        <div className="flex flex-col">
-          <span className="text-[10px] font-medium" style={{ color: "var(--text-muted)" }}>{getGreeting()}</span>
+      <div className="relative flex items-center justify-between mb-6 h-12">
+        {/* 左側：問候語與登入者名稱 */}
+        <div className="flex flex-col justify-center">
+          <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>{getGreeting()}</span>
+          <span className="text-lg font-bold truncate max-w-[150px]" style={{ color: "var(--text-primary)" }}>
+            {userName} 👤
+          </span>
         </div>
         
         {/* 中間：置中標題 */}
@@ -235,11 +238,8 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
           帳簿總覽
         </div>
         
-        {/* 右側：使用者與過濾按鈕 */}
+        {/* 右側：過濾按鈕 */}
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold truncate max-w-[80px]" style={{ color: "var(--text-secondary)" }}>
-            {userName} 👤
-          </span>
           <motion.button
             whileTap={{ scale: 0.9 }}
             onClick={() => setShowFilter(!showFilter)}
