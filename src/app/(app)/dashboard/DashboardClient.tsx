@@ -442,7 +442,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
 
       {/* ── 核心視覺：預算甜甜圈圖 ── */}
       <motion.div
-        key={view + monthIdx} // 切換視角或月份時重新播放動畫
+        key={monthIdx} // 切換月份時重新播放動畫
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.4 }}
