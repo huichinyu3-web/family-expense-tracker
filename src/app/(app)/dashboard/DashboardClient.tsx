@@ -199,10 +199,10 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
   const currentBalance = pastIncome - pastExpense;
   const spentPct = effectiveBudget != null ? Math.min((totalExpense / effectiveBudget) * 100, 100) : 0;
 
-  // 圓餅圖：只呈現「本月已付支出」與「本月已收收入」
+  // 圓餅圖：紅色為本月已付支出，綠色為當前餘額
   const CHART_DATA = [
-    { name: "已付支出", value: pastExpense },
-    { name: "已收收入", value: pastIncome || (pastExpense === 0 ? 1 : 0) },
+    { name: "本月支出", value: pastExpense },
+    { name: "當前餘額", value: Math.max(currentBalance, 0) || (pastExpense === 0 ? 1 : 0) },
   ];
 
   // ── 1. 分類支出排行 (Top Categories Breakdown) ──
