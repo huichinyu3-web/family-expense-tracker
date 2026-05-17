@@ -143,12 +143,20 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
     <div className="px-4 pt-6 pb-2 max-w-lg mx-auto">
 
       {/* ── 頂部標題 ── */}
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>交易明細</h1>
+      <div className="relative flex items-center justify-between mb-6 h-10">
+        {/* 左側預留空間 */}
+        <div className="w-10"></div>
+        
+        {/* 中間：置中標題 */}
+        <div className="absolute left-1/2 -translate-x-1/2 text-base font-bold" style={{ color: "var(--text-primary)" }}>
+          交易明細
+        </div>
+        
+        {/* 右側：過濾按鈕 */}
         <motion.button
           whileTap={{ scale: 0.9 }}
           onClick={() => setShowFilter(f => !f)}
-          className="w-9 h-9 rounded-xl flex items-center justify-center"
+          className="w-9 h-9 rounded-xl flex items-center justify-center transition-all"
           style={{
             background: showFilter ? "rgba(99,102,241,0.2)" : "var(--bg-card)",
             border: showFilter ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
