@@ -557,7 +557,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
             />
             {currentBalance >= 0 ? (
               <p className="text-[10px] mt-0.5 opacity-80" style={{ color: "var(--text-muted)" }}>
-                已存 {pastIncome > 0 ? ((currentBalance / pastIncome) * 100).toFixed(0) : 0}%
+                結餘 {pastIncome > 0 ? ((currentBalance / pastIncome) * 100).toFixed(0) : 0}%
               </p>
             ) : (
               <p className="text-[10px] mt-0.5 font-bold animate-pulse" style={{ color: "#f43f5e" }}>
