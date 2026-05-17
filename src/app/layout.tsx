@@ -14,7 +14,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "共享記帳本 | Shared Expense Tracker",
-  description: "免費、無廣告、具備生物辨識的精品共享協作記帳系統",
+  description: "免費、無廣告、介面流暢的精品共享協作記帳系統",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
