@@ -161,6 +161,44 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
     { name: "剩餘預算", value: Math.max(currentBalance, 0) },
   ];
 
+  // ── 1. 分類支出排行 (Top Categories Breakdown) ──
+  const categoryExpenses = useMemo(() => {
+    const expenses = filteredTx.filter((tx: any) => tx.type === "EXPENSE");
+    const catMap = new Map<string, number>();
+    expenses.forEach((tx: any) => {
+      const catName = tx.category?.name || "未分類";
+      catMap.set(catName, (catMap.get(catName) || 0) + Math.abs(tx.amount));
+    });
+    
+    return Array.from(catMap.entries())
+      .map(([name, amount]) => ({ name, amount, percent: totalExpense > 0 ? (amount / totalExpense) * 100 : 0 }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 3);
+  }, [filteredTx, totalExpense]);
+
+  // ── 2. 智能洞察小語 (Smart Insights) ──
+  const smartInsight = useMemo(() => {
+    if (selectedWallet && currentBalance < 0) {
+      return { text: `⚠️ 注意！【${selectedWallet.name}】餘額已呈現負數 (NT$ ${currentBalance.toLocaleString()})，請留意資金狀況。`, type: "danger" };
+    }
+    if (totalExpense === 0 && totalIncome === 0) {
+      return { text: "📝 這個月還沒有任何記帳紀錄，好的開始！", type: "success" };
+    }
+    
+    if (categoryExpenses.length > 0 && categoryExpenses[0].percent > 50) {
+      return { text: `💡 提醒：本月【${categoryExpenses[0].name}】花費佔比高達 ${categoryExpenses[0].percent.toFixed(0)}%，可能需要稍微留意喔！`, type: "warning" };
+    }
+
+    if (!selectedWallet && spentPct >= 100) {
+       return { text: `🚨 警告：本月花費已超出預算！請注意控制開銷。`, type: "danger" };
+    }
+    if (!selectedWallet && spentPct > 80) {
+       return { text: `⚠️ 提醒：本月花費已達預算 ${spentPct.toFixed(0)}%，請注意控制開銷。`, type: "warning" };
+    }
+
+    return { text: "🔥 您已經開始記帳了，繼續保持這個好習慣！", type: "success" };
+  }, [selectedWallet, currentBalance, totalExpense, totalIncome, categoryExpenses, spentPct]);
+
   const recentTx = filteredTx.slice(0, 5);
 
   const prevMonth = () => {
@@ -219,6 +257,25 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
           </div>
         </div>
       </div>
+
+      {/* ── 智能洞察小語 ── */}
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+        className="mb-6 p-3.5 rounded-2xl flex items-start gap-3 shadow-sm"
+        style={{
+          background: smartInsight.type === "danger" ? "rgba(244,63,94,0.1)" :
+                      smartInsight.type === "warning" ? "rgba(245,158,11,0.1)" :
+                      "rgba(16,185,129,0.1)",
+          border: `1px solid ${smartInsight.type === "danger" ? "rgba(244,63,94,0.25)" :
+                      smartInsight.type === "warning" ? "rgba(245,158,11,0.25)" :
+                      "rgba(16,185,129,0.25)"}`
+        }}>
+        <div className="flex-1 text-sm font-semibold leading-relaxed"
+          style={{ color: smartInsight.type === "danger" ? "#f43f5e" :
+                          smartInsight.type === "warning" ? "#d97706" :
+                          "#10b981" }}>
+          {smartInsight.text}
+        </div>
+      </motion.div>
 
       {/* ── 進階篩選面板 ── */}
       <AnimatePresence>
@@ -482,6 +539,36 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
           )}
         </div>
       </motion.div>
+
+      {/* ── 分類支出排行 Top 3 ── */}
+      {categoryExpenses.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+          className="mb-6 glass-card p-5">
+          <p className="text-xs font-bold mb-3" style={{ color: "var(--text-muted)" }}>📊 本月支出佔比 Top 3</p>
+          <div className="flex flex-col gap-3">
+            {categoryExpenses.map((cat, idx) => (
+              <div key={idx} className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-semibold" style={{ color: "var(--text-primary)" }}>{cat.name}</span>
+                  <span className="font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>NT${cat.amount.toLocaleString()}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-2 rounded-full bg-[var(--bg-surface)] overflow-hidden border border-[var(--border)]">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${cat.percent}%` }}
+                      transition={{ duration: 1, delay: 0.2 + idx * 0.1 }}
+                      className="h-full rounded-full"
+                      style={{ background: idx === 0 ? "#f43f5e" : idx === 1 ? "#f97316" : "#eab308" }}
+                    />
+                  </div>
+                  <span className="text-xs font-bold w-9 text-right tabular-nums" style={{ color: "var(--text-muted)" }}>{cat.percent.toFixed(0)}%</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       {/* ── 拆帳進度卡片 ── */}
       {selectedWallet?.isSplitEnabled && splitState && (
