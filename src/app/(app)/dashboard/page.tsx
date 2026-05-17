@@ -32,7 +32,7 @@ export default async function DashboardPage() {
       wallets={wallets}
       currentUserId={userId}
       userName={session?.user?.name || "使用者"}
-      familyName={membership?.family?.name || "我的家庭"}
+      familyName={membership?.family?.name || "我的共享帳簿"}
       familyMembersCount={familyMembersCount}
     />
   );

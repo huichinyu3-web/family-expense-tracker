@@ -76,7 +76,7 @@ export default function SystemAdminClient({ stats }: { stats: any }) {
         <div className="grid grid-cols-2 gap-3 mb-6">
           {[
             { icon: <Users size={20} />, label: "總註冊人數", value: stats.totalUsers, color: "#6366f1" },
-            { icon: <Home size={20} />, label: "家庭群組數", value: stats.totalFamilies, color: "#10b981" },
+            { icon: <Home size={20} />, label: "共享群組數", value: stats.totalFamilies, color: "#10b981" },
           ].map(s => (
             <div key={s.label} className="glass-card p-4 flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
@@ -89,8 +89,8 @@ export default function SystemAdminClient({ stats }: { stats: any }) {
           ))}
         </div>
 
-        {/* ── 家庭群組管理 ── */}
-        <h2 className="text-sm font-bold mb-3 uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>🏠 家庭群組管理</h2>
+        {/* ── 群組管理 ── */}
+        <h2 className="text-sm font-bold mb-3 uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>👥 群組管理</h2>
         <div className="flex flex-col gap-2 mb-6">
           {stats.families.map((f: any) => (
             <div key={f.id} className="glass-card overflow-hidden">
@@ -105,7 +105,7 @@ export default function SystemAdminClient({ stats }: { stats: any }) {
                 <div className="flex items-center gap-3">
                   <button onClick={() => handleDeleteFamily(f.id, f.name)} disabled={pending}
                     className="p-1.5 rounded-lg transition-colors hover:bg-rose-500/20 disabled:opacity-50"
-                    title="刪除此家庭">
+                    title="刪除此群組">
                     <Trash2 size={16} className="text-rose-500" />
                   </button>
                   <button onClick={() => setExpandedFamily(expandedFamily === f.id ? null : f.id)} className="p-1">

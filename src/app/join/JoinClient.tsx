@@ -46,7 +46,7 @@ export default function JoinClient() {
   };
 
   const ROLE_LABEL: Record<string, string> = {
-    OWNER: "一家之主", ADMIN: "家庭管理員", MEMBER: "一般成員", VIEWER: "唯讀觀察者",
+    OWNER: "群組擁有者", ADMIN: "群組管理員", MEMBER: "一般成員", VIEWER: "唯讀觀察者",
   };
 
   if (loading) return (
@@ -60,7 +60,7 @@ export default function JoinClient() {
       <div className="glass-card p-8 text-center max-w-sm w-full">
         <XCircle size={48} className="mx-auto mb-4 text-red-500" />
         <h2 className="text-lg font-bold mb-2" style={{ color: "var(--text-primary)" }}>邀請連結無效</h2>
-        <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>此連結不存在或已失效，請向家庭管理員重新索取。</p>
+        <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>此連結不存在或已失效，請向群組管理員重新索取。</p>
         <button onClick={() => router.push("/")} className="w-full py-3 rounded-xl font-semibold text-sm text-white"
           style={{ background: "var(--gradient-primary)" }}>返回首頁</button>
       </div>
@@ -72,7 +72,7 @@ export default function JoinClient() {
       <div className="glass-card p-8 text-center max-w-sm w-full">
         <Clock size={48} className="mx-auto mb-4 text-yellow-500" />
         <h2 className="text-lg font-bold mb-2" style={{ color: "var(--text-primary)" }}>邀請連結已過期</h2>
-        <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>此邀請連結已超過 24 小時，請向家庭管理員重新索取。</p>
+        <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>此邀請連結已超過 24 小時，請向群組管理員重新索取。</p>
         <button onClick={() => router.push("/")} className="w-full py-3 rounded-xl font-semibold text-sm text-white"
           style={{ background: "var(--gradient-primary)" }}>返回首頁</button>
       </div>
@@ -84,7 +84,7 @@ export default function JoinClient() {
       <div className="glass-card p-8 text-center max-w-sm w-full">
         <XCircle size={48} className="mx-auto mb-4 text-red-500" />
         <h2 className="text-lg font-bold mb-2" style={{ color: "var(--text-primary)" }}>此連結已使用</h2>
-        <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>此邀請連結只能使用一次，請向家庭管理員重新索取。</p>
+        <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>此邀請連結只能使用一次，請向群組管理員重新索取。</p>
         <button onClick={() => router.push("/")} className="w-full py-3 rounded-xl font-semibold text-sm text-white"
           style={{ background: "var(--gradient-primary)" }}>返回首頁</button>
       </div>
@@ -95,7 +95,7 @@ export default function JoinClient() {
     <div className="min-h-screen flex items-center justify-center p-6" style={{ background: "var(--bg-main)" }}>
       <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="glass-card p-8 text-center max-w-sm w-full">
         <CheckCircle size={48} className="mx-auto mb-4 text-green-500" />
-        <h2 className="text-lg font-bold mb-2" style={{ color: "var(--text-primary)" }}>成功加入家庭！🎉</h2>
+        <h2 className="text-lg font-bold mb-2" style={{ color: "var(--text-primary)" }}>成功加入共享帳簿！🎉</h2>
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>正在帶您前往首頁...</p>
       </motion.div>
     </div>
@@ -114,7 +114,7 @@ export default function JoinClient() {
 
         <div className="rounded-2xl p-4 mb-6" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>家庭名稱</span>
+            <span className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>群組名稱</span>
             <span className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>{inviteInfo.familyName}</span>
           </div>
           <div className="flex items-center justify-between mb-3">
@@ -148,7 +148,7 @@ export default function JoinClient() {
               className="w-full h-12 rounded-2xl font-semibold text-sm text-white flex items-center justify-center gap-2 mb-3"
               style={{ background: "var(--gradient-primary)" }}>
               <LogIn size={16} />
-              {pending ? "加入中..." : "接受邀請並加入家庭"}
+              {pending ? "加入中..." : "接受邀請並加入群組"}
             </motion.button>
             <motion.button
               whileTap={{ scale: 0.97 }}

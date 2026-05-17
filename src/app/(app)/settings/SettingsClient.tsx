@@ -579,7 +579,7 @@ export default function SettingsClient({
           <p className="text-xs" style={{ color: "var(--text-muted)" }}>{user?.email ?? ""}</p>
           <span className="text-[10px] px-2 py-0.5 rounded-full mt-1 inline-block"
             style={{ background: "rgba(99,102,241,0.15)", color: "#6366f1" }}>
-            {user?.familyRole === "OWNER" ? "家庭擁有者 (Owner)" : user?.familyRole === "ADMIN" ? "管理員 (Admin)" : "一般成員"}
+            {user?.familyRole === "OWNER" ? "共享帳簿擁有者 (Owner)" : user?.familyRole === "ADMIN" ? "管理員 (Admin)" : "一般成員"}
           </span>
         </div>
         <ChevronRight size={16} style={{ color: "var(--text-muted)" }} />
@@ -664,9 +664,9 @@ export default function SettingsClient({
         )}
       </AnimatePresence>
 
-      {/* ── 家庭設定 ── */}
+      {/* ── 共享設定 ── */}
       <div className="mt-2">
-        <SectionTitle>👨‍👩‍👧 家庭設定</SectionTitle>
+        <SectionTitle>🤝 共享設定</SectionTitle>
 
         {/* 管理成員 手風琴 */}
         <motion.button onClick={() => setShowMembers(v => !v)} whileTap={{ scale: 0.98 }}
@@ -675,7 +675,7 @@ export default function SettingsClient({
             <Users size={16} style={{ color: "#6366f1" }} />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>管理家庭成員</p>
+            <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>管理成員</p>
             <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>查看成員、修改角色或移除</p>
           </div>
           <ChevronRight size={14} style={{ color: "var(--text-muted)", transform: showMembers ? "rotate(90deg)" : "none", transition: "0.2s" }} />

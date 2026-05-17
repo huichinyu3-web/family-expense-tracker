@@ -54,7 +54,7 @@ export async function updateFamilyMemberRole(memberId: string, newRole: FamilyRo
 
   if (!target) throw new Error("找不到此成員");
   if (target.userId === userId) throw new Error("不能修改自己的角色");
-  if (target.role === "OWNER") throw new Error("不能修改家庭擁有者的角色");
+  if (target.role === "OWNER") throw new Error("不能修改擁有者的角色");
   if (newRole === "OWNER" && myRole !== "OWNER") throw new Error("只有擁有者可以指派新擁有者");
 
   await db.update(familyMembers).set({ role: newRole }).where(eq(familyMembers.id, memberId));
@@ -73,7 +73,7 @@ export async function removeFamilyMember(memberId: string) {
 
   if (!target) throw new Error("找不到此成員");
   if (target.userId === userId) throw new Error("不能移除自己");
-  if (target.role === "OWNER") throw new Error("不能移除家庭擁有者");
+  if (target.role === "OWNER") throw new Error("不能移除擁有者");
 
   await db.delete(familyMembers).where(eq(familyMembers.id, memberId));
 

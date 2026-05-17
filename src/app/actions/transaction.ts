@@ -41,7 +41,7 @@ export async function ensureFamily(userId: string): Promise<string> {
   if (membership) return membership.familyId;
 
   const familyId = crypto.randomUUID();
-  await db.insert(families).values({ id: familyId, name: "我的家庭" });
+  await db.insert(families).values({ id: familyId, name: "我的共享帳簿" });
   await db.insert(familyMembers).values({
     id: crypto.randomUUID(),
     familyId,

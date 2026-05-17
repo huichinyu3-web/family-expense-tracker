@@ -7,7 +7,7 @@ import { createInvitation } from "@/app/actions/invitation";
 
 const ROLE_OPTIONS = [
   { value: "MEMBER", label: "一般成員", desc: "可查看與新增記帳", icon: "👤", color: "#6366f1" },
-  { value: "ADMIN", label: "家庭管理員", desc: "可管理分類與帳戶", icon: "👑", color: "#f59e0b" },
+  { value: "ADMIN", label: "管理員", desc: "可管理分類與帳戶", icon: "👑", color: "#f59e0b" },
   { value: "VIEWER", label: "唯讀觀察者", desc: "只能查看，無法記帳", icon: "👁", color: "#6b7280" },
 ];
 
@@ -52,7 +52,7 @@ export default function InviteSheet({ onClose, familyRole }: { onClose: () => vo
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="text-base font-bold flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
-              <Users size={18} /> 邀請家庭成員
+              <Users size={18} /> 邀請成員
             </h2>
             <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>產生一次性連結，有效時間 24 小時</p>
           </div>

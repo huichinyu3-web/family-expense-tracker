@@ -43,7 +43,7 @@ export default function FamilyMembersPanel({ currentUserId }: { currentUserId: s
   };
 
   const handleRemove = (memberId: string, name: string) => {
-    if (!confirm(`確定要將「${name}」從家庭中移除嗎？此操作無法復原。`)) return;
+    if (!confirm(`確定要將「${name}」從共享帳簿中移除嗎？此操作無法復原。`)) return;
     startTransition(async () => {
       try {
         await removeFamilyMember(memberId);
