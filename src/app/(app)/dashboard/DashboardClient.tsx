@@ -43,7 +43,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
   const [isPending, startTransition] = useTransition();
   const [monthIdx, setMonthIdx] = useState(now.getMonth());
   const [year, setYear] = useState(now.getFullYear());
-  const [view, setView] = useState<"MY" | "FAMILY">("FAMILY");
+  const [year, setYear] = useState(now.getFullYear());
   const [selectedWalletId, setSelectedWalletId] = useState<string>("ALL");
   const [selectedTx, setSelectedTx] = useState<any>(null);
   const [editTxData, setEditTxData] = useState<any>(null);
@@ -58,12 +58,12 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
   const [merchantFilter, setMerchantFilter] = useState("全部");
   const [minAmount, setMinAmount] = useState("");
   const [maxAmount, setMaxAmount] = useState("");
-  const [member, setMember] = useState("全部");
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [typeFilter, setTypeFilter] = useState("全部");
   const [search, setSearch] = useState("");
 
   // 動態提取選項
-  const MEMBERS = ["全部", ...Array.from(new Set(transactions.map((t:any) => t.user?.name).filter(Boolean)))];
+  const MEMBERS = Array.from(new Set(transactions.map((t:any) => t.user?.name).filter(Boolean))) as string[];
   const CATEGORIES = ["全部", ...Array.from(new Set(transactions.map((t:any) => t.category?.name).filter(Boolean)))];
   const MERCHANTS = ["全部", ...Array.from(new Set(transactions.map((t:any) => t.merchant?.name).filter(Boolean)))];
 
@@ -95,10 +95,9 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
       // 月份過濾 (如果沒有設定特定日期區間，才套用月份過濾)
       const isSameMonth = (startDate || endDate) ? true : (txDateObj.getMonth() === monthIdx && txDateObj.getFullYear() === year);
       
-      const matchView = view === "FAMILY" || tx.userId === currentUserId;
       const matchWallet = selectedWalletId === "ALL" || tx.walletId === selectedWalletId;
       
-      const matchMember = member === "全部" || tx.user?.name === member;
+      const matchMember = selectedMembers.length === 0 || selectedMembers.includes(tx.user?.name);
       const matchType   = typeFilter === "全部"
         || (typeFilter === "支出" && tx.type === "EXPENSE")
         || (typeFilter === "收入" && tx.type === "INCOME");
@@ -121,9 +120,9 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
         (tx.merchant?.name?.toLowerCase() || "").includes(search.toLowerCase())
       );
 
-      return isSameMonth && matchView && matchWallet && matchMember && matchType && matchCat && matchMerch && matchMin && matchMax && matchStart && matchEnd && matchSearch;
+      return isSameMonth && matchWallet && matchMember && matchType && matchCat && matchMerch && matchMin && matchMax && matchStart && matchEnd && matchSearch;
     });
-  }, [transactions, monthIdx, year, view, currentUserId, selectedWalletId, member, typeFilter, categoryFilter, merchantFilter, minAmount, maxAmount, startDate, endDate, search]);
+  }, [transactions, monthIdx, year, selectedWalletId, selectedMembers, typeFilter, categoryFilter, merchantFilter, minAmount, maxAmount, startDate, endDate, search]);
 
   const totalExpense = filteredTx.filter((tx: any) => tx.type === "EXPENSE").reduce((sum: number, tx: any) => sum + Math.abs(tx.amount), 0);
   const totalIncome = filteredTx.filter((tx: any) => tx.type === "INCOME").reduce((sum: number, tx: any) => sum + tx.amount, 0);
@@ -145,10 +144,9 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
     splitState = { myPaid, myShare, myNetBalance, membersCount };
   }
 
-  // 計算顯示的餘額或預算
   // 如果選了特定帳簿，中心顯示「該帳簿當前總餘額」
   // 如果是全部，則顯示簡易預算剩餘（Mock）
-  const MOCK_BUDGET = view === "FAMILY" ? 50000 : 20000;
+  const MOCK_BUDGET = 50000;
   const currentBalance = selectedWallet ? selectedWallet.balance : (MOCK_BUDGET - totalExpense);
   const spentPct = selectedWallet ? 0 : Math.min((totalExpense / MOCK_BUDGET) * 100, 100) || 0;
 
@@ -216,9 +214,9 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
       {/* ── 頂部：標題列與視角切換 ── */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>{view === "FAMILY" ? "家庭帳本" : "個人帳本"}</p>
+          <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>家庭帳本</p>
           <h1 className="text-lg font-bold truncate max-w-[150px]" style={{ color: "var(--text-primary)" }}>
-            {view === "FAMILY" ? `${familyName} 👨‍👩‍👧` : `${userName} 👤`}
+            {familyName} 👨‍👩‍👧
           </h1>
         </div>
         
@@ -236,25 +234,6 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
           >
             <SlidersHorizontal size={14} />
           </motion.button>
-          
-          <div className="flex bg-[var(--bg-card)] rounded-xl p-1 border border-[var(--border)]">
-            <button onClick={() => setView("MY")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-              style={{
-                background: view === "MY" ? "rgba(99,102,241,0.15)" : "transparent",
-                color: view === "MY" ? "#6366f1" : "var(--text-muted)",
-              }}>
-              <User size={12} /> 我的
-            </button>
-            <button onClick={() => setView("FAMILY")}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-              style={{
-                background: view === "FAMILY" ? "rgba(99,102,241,0.15)" : "transparent",
-                color: view === "FAMILY" ? "#6366f1" : "var(--text-muted)",
-              }}>
-              <Users size={12} /> 全家
-            </button>
-          </div>
         </div>
       </div>
 
@@ -298,25 +277,28 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
             </div>
           </div>
 
-          {/* 成員 */}
-          {view === "FAMILY" && (
-            <>
-              <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>成員</p>
-              <div className="flex gap-2 mb-4 overflow-x-auto custom-scrollbar pb-1">
-                {(MEMBERS as string[]).map(m => (
-                  <button key={m} onClick={() => setMember(m)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex-shrink-0"
-                    style={{
-                      background: member === m ? "rgba(99,102,241,0.2)" : "var(--bg-card)",
-                      color: member === m ? "#6366f1" : "var(--text-secondary)",
-                      border: member === m ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
-                    }}>
-                    {m}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
+          {/* 成員 (多選) */}
+          <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>成員 (多選)</p>
+          <div className="flex gap-2 mb-4 overflow-x-auto custom-scrollbar pb-1">
+            {(MEMBERS as string[]).map(m => {
+              const isSelected = selectedMembers.includes(m);
+              return (
+                <button key={m} onClick={() => {
+                  setSelectedMembers(prev => 
+                    isSelected ? prev.filter(x => x !== m) : [...prev, m]
+                  );
+                }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex-shrink-0"
+                  style={{
+                    background: isSelected ? "rgba(99,102,241,0.2)" : "var(--bg-card)",
+                    color: isSelected ? "#6366f1" : "var(--text-secondary)",
+                    border: isSelected ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
+                  }}>
+                  {m}
+                </button>
+              );
+            })}
+          </div>
 
           {/* 分類 */}
           <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>分類</p>
