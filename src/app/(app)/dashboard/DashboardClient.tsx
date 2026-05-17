@@ -216,6 +216,20 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
       .reduce((sum: number, tx: any) => sum + Math.abs(tx.amount), 0);
   }, [transactions, selectedWallets]);
 
+  // 4. 歷史累積至今的收入（不限月份，篩選選定的錢包）
+  const allTimeIncome = useMemo(() => {
+    return transactions
+      .filter((tx: any) => {
+        const matchWallet = selectedWallets.length === 0 || selectedWallets.includes(tx.walletId);
+        return tx.type === "INCOME" && matchWallet;
+      })
+      .reduce((sum: number, tx: any) => sum + tx.amount, 0);
+  }, [transactions, selectedWallets]);
+
+  // 歷史累積結餘（累積實收 - 累積實付）與結餘率
+  const allTimeSavings = allTimeIncome - allTimeExpense;
+  const allTimeSavingsRate = allTimeIncome > 0 ? (allTimeSavings / allTimeIncome) * 100 : 0;
+
   const spentPct = effectiveBudget != null ? Math.min((totalExpense / effectiveBudget) * 100, 100) : 0;
 
   // 圓餅圖：紅色為歷史累積支出，綠色為當前累積總資產
@@ -574,9 +588,9 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
               className="text-2xl font-bold"
               style={{ color: currentBalance >= 0 ? "#10b981" : "#f43f5e" }}
             />
-            {monthlySavings >= 0 ? (
+            {allTimeSavings >= 0 ? (
               <p className="text-[10px] mt-0.5 opacity-80" style={{ color: "var(--text-muted)" }}>
-                結餘 {pastIncome > 0 ? ((monthlySavings / pastIncome) * 100).toFixed(0) : 0}%
+                結餘 {allTimeIncome > 0 ? allTimeSavingsRate.toFixed(0) : 0}%
               </p>
             ) : (
               <p className="text-[10px] mt-0.5 font-bold animate-pulse" style={{ color: "#f43f5e" }}>
