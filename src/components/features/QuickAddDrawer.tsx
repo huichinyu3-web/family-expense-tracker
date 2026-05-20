@@ -146,6 +146,7 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
   const [paidByUserId, setPaidByUserId] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [txCurrency, setTxCurrency] = useState<string | null>(null); // 若為 null 則跟隨帳簿
+  const [isLoadingData, setIsLoadingData] = useState(false);
 
   // ── UI 狀態 ─────────────────────────────────────────────────────────
   const [activePanel, setActivePanel] = useState<Panel>("numpad");
@@ -166,6 +167,7 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
 
   useEffect(() => {
     if (!open) return;
+    setIsLoadingData(true);
     Promise.all([getAccessibleWallets(), getCategories(), getMerchants(), getFrequentMerchants(5), getFamilyMembers()])
       .then(([w, c, m, fm, familyMembersData]) => {
         setWallets(w as WalletItem[]);
@@ -197,7 +199,8 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
           }
           if (session?.user?.id) setPaidByUserId(session.user.id);
         }
-      });
+      })
+      .finally(() => setIsLoadingData(false));
   }, [open, editData, session]);
 
   // 重置
@@ -383,6 +386,13 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
             className="fixed bottom-0 left-0 right-0 z-[70] mx-auto w-full max-w-lg flex flex-col rounded-t-3xl shadow-2xl"
             style={{ height: "92vh", background: "var(--bg-surface)", borderTop: "1px solid var(--border)" }}
           >
+            {/* ── 讀取中遮罩 ── */}
+            {isLoadingData && (
+              <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[var(--bg-surface)]/80 backdrop-blur-sm rounded-t-3xl">
+                <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                <p className="mt-4 text-sm font-bold text-[var(--text-secondary)]">載入資料中...</p>
+              </div>
+            )}
             {/* ── 頂部導覽列：返回 / 收支切換 ── */}
             <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border)] bg-[var(--bg-card)] rounded-t-3xl">
               <button onClick={handleClose} className="text-base font-semibold text-[var(--text-secondary)]">取消</button>
