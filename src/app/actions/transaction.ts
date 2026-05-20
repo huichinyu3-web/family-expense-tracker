@@ -191,7 +191,7 @@ export async function getTransactions(walletId?: string) {
       merchant: true,
     },
     orderBy: (tx, { desc }) => [desc(tx.date)],
-    limit: 100,
+    limit: 500,
   });
 
   // 若有指定帳戶，過濾之

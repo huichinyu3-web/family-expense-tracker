@@ -86,6 +86,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [typeFilter, setTypeFilter] = useState("全部");
   const [search, setSearch] = useState("");
+  const [showAllTx, setShowAllTx] = useState(false);
 
   // 動態提取選項
   const MEMBERS = Array.from(new Set(transactions.map((t:any) => t.user?.name).filter(Boolean))) as string[];
@@ -305,7 +306,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
     }
   ];
 
-  const recentTx = filteredTx.slice(0, 5);
+  const displayTx = showAllTx ? filteredTx : filteredTx.slice(0, 5);
 
   const prevMonth = () => {
     if (monthIdx === 0) { setMonthIdx(11); setYear(y => y - 1); }
@@ -751,21 +752,29 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
         </div>
       </div>
 
-      {/* ── 最近交易明細 ── */}
+      {/* ── 本月交易明細 ── */}
       <div className="mb-4">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>最近記帳</h2>
-          {recentTx.length > 0 && <button className="text-xs" style={{ color: "#6366f1" }}>查看全部</button>}
+          <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>本月明細 ({filteredTx.length})</h2>
+          {filteredTx.length > 5 && (
+            <button 
+              onClick={() => setShowAllTx(!showAllTx)} 
+              className="text-xs" 
+              style={{ color: "#6366f1" }}
+            >
+              {showAllTx ? "收起" : "查看全部"}
+            </button>
+          )}
         </div>
 
-        {recentTx.length === 0 ? (
+        {displayTx.length === 0 ? (
           <div className="text-center py-8 glass-card">
             <p className="text-2xl mb-2">🍃</p>
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>本月尚無明細</p>
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            {recentTx.map((tx: any, i: number) => {
+            {displayTx.map((tx: any, i: number) => {
               const d = new Date(tx.date);
               const dateStr = `${d.getMonth() + 1}/${d.getDate()} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
               return (
