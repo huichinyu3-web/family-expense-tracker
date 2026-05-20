@@ -17,7 +17,7 @@ function LoginClient() {
     if (status !== "authenticated") return;
     const timer = setTimeout(() => {
       router.replace(callbackUrl);
-    }, 3000);
+    }, 2500);
     return () => clearTimeout(timer); // 若使用者提前點「繼續使用」則取消計時器
   }, [status, router, callbackUrl]);
 
@@ -34,9 +34,40 @@ function LoginClient() {
   // ── 已登入：顯示目前帳號 + 切換帳號選項 ──
   if (status === "authenticated" && session?.user) {
     return (
-      <main className="min-h-screen flex flex-col items-center justify-center px-6"
+      <main className="min-h-screen flex flex-col items-center justify-center px-6 gap-6"
         style={{ background: "radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.15) 0%, #0a0a0f 70%)" }}>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+
+        {/* ── App 名稱與介紹 ── */}
+        <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
+          className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4"
+            style={{ background: "var(--gradient-primary)", boxShadow: "var(--shadow-glow)" }}>
+            <Wallet size={28} color="white" />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>共享記帳本</h1>
+          <p className="mt-1.5 text-sm" style={{ color: "var(--text-secondary)" }}>
+            與夥伴一起輕鬆管理每一筆支出
+          </p>
+
+          {/* 功能特色小標籤 */}
+          <div className="flex items-center justify-center gap-2 mt-4 flex-wrap">
+            {[
+              { icon: "💰", label: "即時記帳" },
+              { icon: "🤝", label: "夥伴共享" },
+              { icon: "📊", label: "月報分析" },
+              { icon: "🔒", label: "隱私安全" },
+            ].map(({ icon, label }) => (
+              <span key={label}
+                className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold"
+                style={{ background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", color: "var(--text-secondary)" }}>
+                {icon} {label}
+              </span>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* ── 帳號卡片 ── */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
           className="glass-card w-full max-w-sm p-8 flex flex-col items-center gap-5 text-center">
 
           {session.user.image && (
