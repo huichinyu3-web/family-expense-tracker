@@ -5,6 +5,7 @@ import { Toaster } from "sonner";
 import NextTopLoader from "nextjs-toploader";
 import InAppBrowserDetector from "@/components/features/InAppBrowserDetector";
 import PwaInstallPrompt from "@/components/features/PwaInstallPrompt";
+import PwaUpdatePrompt from "@/components/features/PwaUpdatePrompt";
 import "./globals.css";
 
 const inter = Inter({
@@ -54,6 +55,7 @@ export default function RootLayout({
           <Providers>{children}</Providers>
         </InAppBrowserDetector>
         <PwaInstallPrompt />
+        <PwaUpdatePrompt />
         <Toaster position="top-center" theme="dark" />
       </body>
     </html>
