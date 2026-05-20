@@ -44,7 +44,7 @@ function formatDate(dateStr: string) {
   return `${d.getMonth() + 1} 月 ${d.getDate()} 日`;
 }
 
-export default function TransactionsClient({ initialData, wallets, currentUserId }: { initialData: any[]; wallets: any[]; currentUserId: string | undefined }) {
+export default function TransactionsClient({ initialData, wallets, currentUserId, currentUserRole }: { initialData: any[]; wallets: any[]; currentUserId: string | undefined; currentUserRole?: string }) {
   const router = useRouter();
   const [search, setSearch]       = useState("");
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
@@ -485,7 +485,7 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
                 </button>
               </div>
 
-              {selectedTx.userId === currentUserId ? (
+              {(selectedTx.userId === currentUserId || currentUserRole === "OWNER") ? (
                 <div className="flex gap-3">
                   <button onClick={() => { setEditTxData(selectedTx); setIsEditDrawerOpen(true); setSelectedTx(null); }}
                     className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-bold bg-[var(--bg-card)] text-[var(--text-primary)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition-colors">
@@ -499,7 +499,7 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
               ) : (
                 <div className="text-center py-4 bg-[var(--bg-card)] rounded-xl border border-[var(--border)]">
                   <p className="text-sm text-[var(--text-secondary)] mb-1">這是 {selectedTx.user?.name || "其他成員"} 的紀錄</p>
-                  <p className="text-xs text-[var(--text-muted)]">只有建立者可以編輯或刪除</p>
+                  <p className="text-xs text-[var(--text-muted)]">只有建立者或家庭擁有者可以編輯或刪除</p>
                 </div>
               )}
             </motion.div>

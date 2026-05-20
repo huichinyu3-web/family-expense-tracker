@@ -34,6 +34,7 @@ export default async function DashboardPage() {
       userName={session?.user?.name || "使用者"}
       familyName={membership?.family?.name || "我的共享帳簿"}
       familyMembersCount={familyMembersCount}
+      currentUserRole={membership?.role || "MEMBER"}
     />
   );
 }

@@ -250,7 +250,14 @@ export async function deleteTransaction(transactionId: string) {
   });
 
   if (!tx) throw new Error("Transaction not found");
-  if (tx.userId !== session.user.id) throw new Error("您只能刪除自己建立的紀錄");
+  
+  const membership = await db.query.familyMembers.findFirst({
+    where: and(eq(familyMembers.userId, session.user.id), eq(familyMembers.familyId, tx.familyId))
+  });
+
+  if (tx.userId !== session.user.id && membership?.role !== "OWNER") {
+    throw new Error("您只能刪除自己建立的紀錄，或由家庭擁有者刪除");
+  }
 
   // 如果是分期付款的母筆或子筆，這裡為了簡單，先刪除該單筆（若是母筆也可以連鎖刪除，但我們暫時依據 ID 單筆刪除）
   await db.delete(transactions).where(eq(transactions.id, transactionId));
@@ -287,7 +294,14 @@ export async function updateTransaction(
   });
 
   if (!tx) throw new Error("Transaction not found");
-  if (tx.userId !== session.user.id) throw new Error("您只能編輯自己建立的紀錄");
+
+  const membership = await db.query.familyMembers.findFirst({
+    where: and(eq(familyMembers.userId, session.user.id), eq(familyMembers.familyId, tx.familyId))
+  });
+
+  if (tx.userId !== session.user.id && membership?.role !== "OWNER") {
+    throw new Error("您只能編輯自己建立的紀錄，或由家庭擁有者編輯");
+  }
 
   const amount = data.type === "EXPENSE" ? -Math.abs(data.amount) : Math.abs(data.amount);
 
