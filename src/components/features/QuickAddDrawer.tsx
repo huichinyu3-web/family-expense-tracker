@@ -254,6 +254,9 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
       return; 
     }
 
+    // 限制每段數字最多 12 位，防止溢出
+    const currentSegment = expr.split(/[+\-×÷]/).pop() || "";
+    if (currentSegment.replace(".", "").length >= 12) return;
     setExpr(prev => prev === "0" ? key : prev + key);
   };
 
@@ -409,8 +412,12 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
                     <option key={c.code} value={c.code}>{c.label}</option>
                   ))}
                 </select>
-                <span className="font-bold tabular-nums tracking-tight truncate"
-                  style={{ fontSize: expr.length > 8 ? "2.5rem" : "3.5rem", color: accentColor }}>
+                <span className="font-bold tabular-nums tracking-tight text-right break-all leading-none"
+                  style={{
+                    fontSize: expr.length <= 8 ? "3.5rem" : expr.length <= 11 ? "2.5rem" : expr.length <= 15 ? "1.8rem" : "1.4rem",
+                    color: accentColor,
+                    wordBreak: "break-all",
+                  }}>
                   {expr}
                 </span>
               </motion.div>
