@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useTransition } from "react";
-import { Search, SlidersHorizontal, TrendingDown, TrendingUp, X, Edit2, Trash2, ArrowLeft, ArrowRight } from "lucide-react";
+import { Search, SlidersHorizontal, TrendingDown, TrendingUp, X, Edit2, Trash2, ArrowLeft, ArrowRight, Wallet } from "lucide-react";
 import { deleteTransaction } from "@/app/actions/transaction";
 import { useRouter } from "next/navigation";
 import QuickAddDrawer from "@/components/features/QuickAddDrawer";
@@ -183,14 +183,20 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
       </div>
 
       {/* ── 帳簿過濾選擇器（多選） ── */}
-      <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2 mb-4">
+      <div className="mb-5 glass-card p-3 rounded-2xl border border-[var(--border)]">
+        <div className="flex items-center gap-1.5 mb-2.5 px-1">
+          <Wallet size={16} className="text-[#6366f1]" />
+          <span className="text-sm font-bold text-[var(--text-primary)]">當前顯示帳簿</span>
+          <span className="text-xs text-[var(--text-muted)] ml-auto">可多選</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
         {wallets.map((w: any) => {
           const isSel = selectedWallets.includes(w.id);
           return (
             <button key={w.id} onClick={() => setSelectedWallets(prev =>
               isSel ? prev.filter(x => x !== w.id) : [...prev, w.id]
             )}
-              className="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+              className="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
               style={{
                 background: isSel ? "rgba(16,185,129,0.15)" : "var(--bg-card)",
                 color: isSel ? "#10b981" : "var(--text-secondary)",
@@ -200,6 +206,7 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
             </button>
           );
         })}
+        </div>
       </div>
 
       {/* ── 搜尋列 ── */}
@@ -241,7 +248,7 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
 
           {/* 成員 (多選) */}
           <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>成員 (多選)</p>
-          <div className="flex gap-2 mb-4 overflow-x-auto custom-scrollbar pb-1">
+          <div className="flex flex-wrap gap-2 mb-4">
             {(MEMBERS as string[]).map(m => {
               const isSelected = selectedMembers.includes(m);
               return (
@@ -250,7 +257,7 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
                     isSelected ? prev.filter(x => x !== m) : [...prev, m]
                   );
                 }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex-shrink-0"
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
                   style={{
                     background: isSelected ? "rgba(99,102,241,0.2)" : "var(--bg-card)",
                     color: isSelected ? "#6366f1" : "var(--text-secondary)",
@@ -264,10 +271,10 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
 
           {/* 分類 */}
           <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>分類</p>
-          <div className="flex gap-2 mb-4 overflow-x-auto custom-scrollbar pb-1">
+          <div className="flex flex-wrap gap-2 mb-4">
             {(CATEGORIES as string[]).map(c => (
               <button key={c} onClick={() => setCategoryFilter(c)}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex-shrink-0"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
                 style={{
                   background: categoryFilter === c ? "rgba(99,102,241,0.2)" : "var(--bg-card)",
                   color: categoryFilter === c ? "#6366f1" : "var(--text-secondary)",
@@ -280,10 +287,10 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
 
           {/* 商家 */}
           <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>商家</p>
-          <div className="flex gap-2 mb-4 overflow-x-auto custom-scrollbar pb-1">
+          <div className="flex flex-wrap gap-2 mb-4">
             {(MERCHANTS as string[]).map(m => (
               <button key={m} onClick={() => setMerchantFilter(m)}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex-shrink-0"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
                 style={{
                   background: merchantFilter === m ? "rgba(99,102,241,0.2)" : "var(--bg-card)",
                   color: merchantFilter === m ? "#6366f1" : "var(--text-secondary)",
