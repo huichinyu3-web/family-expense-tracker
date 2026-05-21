@@ -47,10 +47,9 @@ export async function getAccessibleWallets() {
   });
 
   // 過濾出該使用者有權限的帳戶
+  // 規則：FAMILY 任何人都能看；PERSONAL 只有 owner；CUSTOM 只有 wallet_members
+  // OWNER/ADMIN 的提升權限僅限帳簿管理操作（刪除、設定），可見性與一般成員相同
   const accessible = allWallets.filter((w) => {
-    // 擁有者或管理員擁有最高權限，可看到並管理所有帳簿
-    if (membership.role === "OWNER" || membership.role === "ADMIN") return true;
-
     if (w.visibility === "FAMILY") return true;
     if (w.visibility === "PERSONAL") return w.ownerId === userId;
     if (w.visibility === "CUSTOM") {

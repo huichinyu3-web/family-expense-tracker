@@ -2,7 +2,7 @@
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { transactions, families, familyMembers, categories } from "@/lib/db/schema";
+import { transactions, families, familyMembers, categories, wallets, walletMembers } from "@/lib/db/schema";
 import { seedCategories } from "@/lib/db/seed-categories";
 import { findOrCreateMerchant } from "./merchant";
 import { eq, and, or, gt } from "drizzle-orm";
@@ -182,6 +182,25 @@ export async function getTransactions(walletId?: string) {
   });
   if (!membership) return [];
 
+  // 取得該使用者可見的帳簿清單（依帳簿可見性規則，OWNER/ADMIN 不繞過）
+  const allWalletsInFamily = await db.query.wallets.findMany({
+    where: eq(wallets.familyId, membership.familyId),
+    with: { walletMembers: true },
+  });
+
+  const accessibleWalletIds = allWalletsInFamily
+    .filter((w) => {
+      if (w.visibility === "FAMILY") return true;
+      if (w.visibility === "PERSONAL") return w.ownerId === userId;
+      if (w.visibility === "CUSTOM") {
+        return w.walletMembers.some((wm) => wm.userId === userId);
+      }
+      return false;
+    })
+    .map((w) => w.id);
+
+  if (accessibleWalletIds.length === 0) return [];
+
   const allTx = await db.query.transactions.findMany({
     where: eq(transactions.familyId, membership.familyId),
     with: {
@@ -194,9 +213,14 @@ export async function getTransactions(walletId?: string) {
     limit: 500,
   });
 
-  // 若有指定帳戶，過濾之
-  if (walletId) return allTx.filter((tx) => tx.walletId === walletId);
-  return allTx;
+  // 只回傳可見帳簿的交易
+  const filtered = allTx.filter(
+    (tx) => !tx.walletId || accessibleWalletIds.includes(tx.walletId)
+  );
+
+  // 若有指定帳戶，再過濾之
+  if (walletId) return filtered.filter((tx) => tx.walletId === walletId);
+  return filtered;
 }
 
 // ── 取得儀表板摘要數字 ───────────────────────────────────────────────
