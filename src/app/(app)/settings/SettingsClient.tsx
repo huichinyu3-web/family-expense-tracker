@@ -81,7 +81,7 @@ function AddWalletSheet({ onClose, onDone, familyRole, familyMembers }: { onClos
       <motion.div
         initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
         transition={{ type: "spring", damping: 28, stiffness: 280 }}
-        className="w-full max-w-lg mx-auto rounded-t-3xl p-6"
+        className="w-full max-w-lg mx-auto rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto custom-scrollbar"
         style={{ background: "var(--bg-surface)", border: "1px solid var(--border)", borderBottom: "none" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -285,7 +285,7 @@ function EditWalletSheet({ wallet, onClose, onDone, familyRole, familyMembers }:
       <motion.div
         initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
         transition={{ type: "spring", damping: 28, stiffness: 280 }}
-        className="w-full max-w-lg mx-auto rounded-t-3xl p-6"
+        className="w-full max-w-lg mx-auto rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto custom-scrollbar"
         style={{ background: "var(--bg-surface)", border: "1px solid var(--border)", borderBottom: "none" }}
         onClick={(e) => e.stopPropagation()}
       >
