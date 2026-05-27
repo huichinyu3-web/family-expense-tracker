@@ -196,47 +196,16 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
     return total > 0 ? total : null;
   })();
 
-  // 1. 本月收支結餘
-  const monthlySavings = pastIncome - pastExpense;
-
-  // 2. 當前餘額大字顯示為「歷史累積真實總餘額（總資產）」
-  const currentBalance = (() => {
-    const targetWalletsForBalance = selectedWallets.length > 0
-      ? wallets.filter((w: any) => selectedWallets.includes(w.id))
-      : wallets;
-    return targetWalletsForBalance.reduce((sum: number, w: any) => sum + (w.balance || 0), 0);
-  })();
-
-  // 3. 歷史累積至今的支出（不限月份，篩選選定的錢包）
-  const allTimeExpense = useMemo(() => {
-    return transactions
-      .filter((tx: any) => {
-        const matchWallet = selectedWallets.length === 0 || selectedWallets.includes(tx.walletId);
-        return tx.type === "EXPENSE" && matchWallet;
-      })
-      .reduce((sum: number, tx: any) => sum + Math.abs(tx.amount), 0);
-  }, [transactions, selectedWallets]);
-
-  // 4. 歷史累積至今的收入（不限月份，篩選選定的錢包）
-  const allTimeIncome = useMemo(() => {
-    return transactions
-      .filter((tx: any) => {
-        const matchWallet = selectedWallets.length === 0 || selectedWallets.includes(tx.walletId);
-        return tx.type === "INCOME" && matchWallet;
-      })
-      .reduce((sum: number, tx: any) => sum + tx.amount, 0);
-  }, [transactions, selectedWallets]);
-
-  // 歷史累積結餘（累積實收 - 累積實付）與結餘率
-  const allTimeSavings = allTimeIncome - allTimeExpense;
-  const allTimeSavingsRate = allTimeIncome > 0 ? (allTimeSavings / allTimeIncome) * 100 : 0;
+  // 1. 區間收支結餘 (取代原本的 allTimeSavings，改用當前過濾後的資料)
+  const periodSavings = totalIncome - totalExpense;
+  const periodSavingsRate = totalIncome > 0 ? (periodSavings / totalIncome) * 100 : 0;
 
   const spentPct = effectiveBudget != null ? Math.min((totalExpense / effectiveBudget) * 100, 100) : 0;
 
-  // 圓餅圖：紅色為歷史累積支出，綠色為當前累積總資產
+  // 圓餅圖：紅色為期間支出，綠色為期間結餘 (若透支則全紅)
   const CHART_DATA = [
-    { name: "歷史支出", value: allTimeExpense },
-    { name: "當前總資產", value: Math.max(currentBalance, 0) || (allTimeExpense === 0 ? 1 : 0) },
+    { name: "期間支出", value: totalExpense },
+    { name: "期間結餘", value: Math.max(periodSavings, 0) || (totalExpense === 0 ? 1 : 0) },
   ];
 
   // ── 1. 分類支出排行 (Top Categories Breakdown) ──
@@ -256,8 +225,8 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
 
   // ── 2. 智能洞察小語 (Smart Insights) ──
   const smartInsight = useMemo(() => {
-    if (selectedWallet && currentBalance < 0) {
-      return { text: `⚠️ 注意！【${selectedWallet.name}】餘額已呈現負數 (NT$ ${currentBalance.toLocaleString()})，請留意資金狀況。`, type: "danger" };
+    if (selectedWallet && (selectedWallet.balance || 0) < 0) {
+      return { text: `⚠️ 注意！【${selectedWallet.name}】餘額已呈現負數 (NT$ ${(selectedWallet.balance || 0).toLocaleString()})，請留意資金狀況。`, type: "danger" };
     }
     if (totalExpense === 0 && totalIncome === 0) {
       return { text: "📝 這個月還沒有任何記帳紀錄，好的開始！", type: "success" };
@@ -281,7 +250,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
     }
 
     return { text: "🔥 您已經開始記帳了，繼續保持這個好習慣！", type: "success" };
-  }, [selectedWallet, currentBalance, totalExpense, totalIncome, categoryExpenses, spentPct, effectiveBudget]);
+  }, [selectedWallet, totalExpense, totalIncome, categoryExpenses, spentPct, effectiveBudget]);
 
   const onboardingSlides = [
     {
@@ -588,17 +557,17 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
 
           {/* 圓心文字 */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>當前總資產</p>
+            <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>區間淨結餘</p>
             <CountUp
-              end={currentBalance}
+              end={periodSavings}
               prefix="NT$"
               duration={1400}
               className="text-2xl font-bold"
-              style={{ color: currentBalance >= 0 ? "#10b981" : "#f43f5e" }}
+              style={{ color: periodSavings >= 0 ? "#10b981" : "#f43f5e" }}
             />
-            {allTimeSavings >= 0 ? (
+            {periodSavings >= 0 ? (
               <p className="text-[10px] mt-0.5 opacity-80" style={{ color: "var(--text-muted)" }}>
-                結餘 {allTimeIncome > 0 ? allTimeSavingsRate.toFixed(0) : 0}%
+                結餘率 {totalIncome > 0 ? periodSavingsRate.toFixed(0) : 0}%
               </p>
             ) : (
               <p className="text-[10px] mt-0.5 font-bold animate-pulse" style={{ color: "#f43f5e" }}>
