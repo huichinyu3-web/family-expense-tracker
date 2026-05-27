@@ -76,6 +76,8 @@ export async function createWallet(data: {
   currency?: string;
   isSplitEnabled?: boolean;
   monthlyBudget?: number | null;
+  startDate?: string | null;
+  endDate?: string | null;
 }) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Unauthorized");
@@ -100,10 +102,12 @@ export async function createWallet(data: {
     name: data.name,
     type: data.type,
     visibility: data.visibility,
-    ownerId: userId, // 記錄創建者，讓創建者也能管理自己建的 CUSTOM 帳簿
+    ownerId: userId,
     currency: data.currency || "TWD",
     isSplitEnabled: data.isSplitEnabled || false,
     monthlyBudget: data.monthlyBudget ?? null,
+    startDate: data.startDate ?? null,
+    endDate: data.endDate ?? null,
   });
 
   // 若是 CUSTOM，插入指定成員
@@ -222,6 +226,8 @@ export async function updateWallet(
     currency?: string;
     isSplitEnabled?: boolean;
     monthlyBudget?: number | null;
+    startDate?: string | null;
+    endDate?: string | null;
   }
 ) {
   const session = await auth();
@@ -256,6 +262,8 @@ export async function updateWallet(
       currency: data.currency,
       isSplitEnabled: data.isSplitEnabled,
       monthlyBudget: data.monthlyBudget ?? null,
+      startDate: data.startDate ?? null,
+      endDate: data.endDate ?? null,
     })
     .where(eq(wallets.id, walletId));
 
@@ -269,5 +277,37 @@ export async function updateWallet(
   }
 
   revalidatePath("/settings");
+  return { success: true };
+}
+
+// ── 封存 / 解封存帳戶 ───────────────────────────────────────────────
+// 封存後帳簿不顯示於日常記帳選單，但歷史資料完整保留
+export async function archiveWallet(walletId: string, archive: boolean) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  const wallet = await db.query.wallets.findFirst({
+    where: eq(wallets.id, walletId),
+  });
+  if (!wallet) throw new Error("Wallet not found");
+
+  const myMember = await db.query.familyMembers.findFirst({
+    where: and(
+      eq(familyMembers.userId, session.user.id),
+      eq(familyMembers.familyId, wallet.familyId)
+    ),
+  });
+  const isAdmin = myMember?.role === "OWNER" || myMember?.role === "ADMIN";
+
+  if (!isAdmin && wallet.ownerId !== session.user.id) {
+    throw new Error("Only OWNER, ADMIN, or the creator can archive this wallet.");
+  }
+
+  await db.update(wallets)
+    .set({ isArchived: archive })
+    .where(eq(wallets.id, walletId));
+
+  revalidatePath("/settings");
+  revalidatePath("/dashboard");
   return { success: true };
 }

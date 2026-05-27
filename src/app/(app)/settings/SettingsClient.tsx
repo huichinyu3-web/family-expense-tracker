@@ -7,7 +7,7 @@ import {
   Trash2, LogOut, Moon, Globe, Key, Plus, Wallet,
   Tag, X, ChevronDown, ChevronUp, Eye, EyeOff, Check, Edit2, Loader2
 } from "lucide-react";
-import { createWallet, deleteWallet, updateWallet } from "@/app/actions/wallet";
+import { createWallet, deleteWallet, updateWallet, archiveWallet } from "@/app/actions/wallet";
 import { createParentCategory, createChildCategory, toggleCategoryVisibility, deleteCategory } from "@/app/actions/category";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -20,6 +20,7 @@ import { COMMON_CURRENCIES } from "@/lib/currencies";
 type Wallet = {
   id: string; name: string; type: string; visibility: string; ownerId?: string | null; balance?: number;
   currency: string; isSplitEnabled: boolean; monthlyBudget?: number | null;
+  startDate?: string | null; endDate?: string | null; isArchived?: boolean;
   walletMembers?: { userId: string }[];
 };
 type CategoryChild = { id: string; name: string; icon: string | null; isDefault: boolean; isHidden: boolean; };
@@ -58,6 +59,8 @@ function AddWalletSheet({ onClose, onDone, familyRole, familyMembers }: { onClos
   const [currency, setCurrency] = useState("TWD");
   const [isSplitEnabled, setIsSplitEnabled] = useState(false);
   const [monthlyBudget, setMonthlyBudget] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [pending, startTransition] = useTransition();
 
@@ -68,7 +71,7 @@ function AddWalletSheet({ onClose, onDone, familyRole, familyMembers }: { onClos
       return;
     }
     startTransition(async () => {
-      await createWallet({ name: name.trim(), type, visibility, initialBalance: parseFloat(initialBalance) || 0, currency, isSplitEnabled, monthlyBudget: monthlyBudget ? parseFloat(monthlyBudget) : null, memberIds: selectedMembers });
+      await createWallet({ name: name.trim(), type, visibility, initialBalance: parseFloat(initialBalance) || 0, currency, isSplitEnabled, monthlyBudget: monthlyBudget ? parseFloat(monthlyBudget) : null, memberIds: selectedMembers, startDate: startDate || null, endDate: endDate || null });
       onDone();
     });
   };
@@ -214,6 +217,26 @@ function AddWalletSheet({ onClose, onDone, familyRole, familyMembers }: { onClos
           </div>
         </div>
 
+        {/* 期間設定（選填）*/}
+        <div className="mb-6 p-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)]">
+          <p className="text-xs font-bold mb-2.5" style={{ color: "var(--text-primary)" }}>📅 期間限定（選填）</p>
+          <p className="text-[10px] mb-3" style={{ color: "var(--text-muted)" }}>設定後，選取此帳簿時儀表板日期將自動切換至此區間，適合旅遊、專案等一次性帳簿。</p>
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="block text-[10px] mb-1" style={{ color: "var(--text-muted)" }}>開始日期</label>
+              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl text-xs outline-none"
+                style={{ background: "var(--bg-surface)", border: "1px solid var(--border)", color: "var(--text-primary)" }} />
+            </div>
+            <div className="flex-1">
+              <label className="block text-[10px] mb-1" style={{ color: "var(--text-muted)" }}>結束日期</label>
+              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl text-xs outline-none"
+                style={{ background: "var(--bg-surface)", border: "1px solid var(--border)", color: "var(--text-primary)" }} />
+            </div>
+          </div>
+        </div>
+
         <motion.button
           whileTap={{ scale: 0.97 }} onClick={handleSave} disabled={pending || !name.trim()}
           className="w-full h-12 rounded-2xl font-semibold text-sm"
@@ -236,6 +259,8 @@ function EditWalletSheet({ wallet, onClose, onDone, familyRole, familyMembers }:
   const [currency, setCurrency] = useState(wallet.currency || "TWD");
   const [isSplitEnabled, setIsSplitEnabled] = useState(wallet.isSplitEnabled || false);
   const [monthlyBudget, setMonthlyBudget] = useState(wallet.monthlyBudget != null ? String(wallet.monthlyBudget) : "");
+  const [startDate, setStartDate] = useState(wallet.startDate || "");
+  const [endDate, setEndDate] = useState(wallet.endDate || "");
   const [selectedMembers, setSelectedMembers] = useState<string[]>(wallet.walletMembers?.map(m => m.userId) || []);
   const [pending, startTransition] = useTransition();
 
@@ -247,7 +272,7 @@ function EditWalletSheet({ wallet, onClose, onDone, familyRole, familyMembers }:
     }
     startTransition(async () => {
       try {
-        await updateWallet(wallet.id, { name: name.trim(), type, visibility, memberIds: selectedMembers, currency, isSplitEnabled, monthlyBudget: monthlyBudget ? parseFloat(monthlyBudget) : null });
+        await updateWallet(wallet.id, { name: name.trim(), type, visibility, memberIds: selectedMembers, currency, isSplitEnabled, monthlyBudget: monthlyBudget ? parseFloat(monthlyBudget) : null, startDate: startDate || null, endDate: endDate || null });
         onDone();
       } catch (e: any) {
         alert(e.message || "更新失敗");
@@ -384,6 +409,27 @@ function EditWalletSheet({ wallet, onClose, onDone, familyRole, familyMembers }:
             />
           </div>
         </div>
+
+        {/* 期間設定（選填）*/}
+        <div className="mb-6 p-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)]">
+          <p className="text-xs font-bold mb-2.5" style={{ color: "var(--text-primary)" }}>📅 期間限定（選填）</p>
+          <p className="text-[10px] mb-3" style={{ color: "var(--text-muted)" }}>設定後，選取此帳簿時儀表板日期將自動切換至此區間。</p>
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="block text-[10px] mb-1" style={{ color: "var(--text-muted)" }}>開始日期</label>
+              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl text-xs outline-none"
+                style={{ background: "var(--bg-surface)", border: "1px solid var(--border)", color: "var(--text-primary)" }} />
+            </div>
+            <div className="flex-1">
+              <label className="block text-[10px] mb-1" style={{ color: "var(--text-muted)" }}>結束日期</label>
+              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl text-xs outline-none"
+                style={{ background: "var(--bg-surface)", border: "1px solid var(--border)", color: "var(--text-primary)" }} />
+            </div>
+          </div>
+        </div>
+
         <motion.button
           whileTap={{ scale: 0.97 }} onClick={handleSave} disabled={pending || !name.trim()}
           className="w-full h-12 rounded-2xl font-semibold text-sm"
@@ -594,16 +640,18 @@ export default function SettingsClient({
         const t = WALLET_TYPE_LABELS[w.type] ?? { label: w.type, icon: "💰" };
         const v = VISIBILITY_LABELS[w.visibility] ?? { label: w.visibility, color: "#999" };
         return (
-          <motion.div key={w.id} layout className="glass-card px-4 py-3 flex items-center gap-3 mb-2">
+          <motion.div key={w.id} layout className={`glass-card px-4 py-3 flex items-center gap-3 mb-2 ${w.isArchived ? 'opacity-60' : ''}`}>
             <span className="text-xl">{t.icon}</span>
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>{w.name}</p>
+                <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>{w.name}
+                  {w.isArchived && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(156,163,175,0.2)", color: "#9ca3af" }}>封存中</span>}
+                </p>
                 <span className="text-sm font-bold tabular-nums flex-shrink-0 ml-2" style={{ color: w.balance! < 0 ? "#f43f5e" : "var(--text-primary)" }}>
                   {w.currency} {w.balance?.toLocaleString() || 0}
                 </span>
               </div>
-              <div className="flex items-center gap-2 mt-0.5">
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                 <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>{t.label}</span>
                 <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: `${v.color}20`, color: v.color }}>
                   {v.label}
@@ -613,15 +661,24 @@ export default function SettingsClient({
                     📐 拆帳模式
                   </span>
                 )}
+                {(w.startDate || w.endDate) && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(245,158,11,0.15)", color: "#f59e0b" }}>
+                    📅 {w.startDate || "?"} ~ {w.endDate || "?"}
+                  </span>
+                )}
               </div>
             </div>
             
-            {/* 權限判斷：
-                1. FAMILY 帳簿僅限 OWNER/ADMIN 刪除/編輯
-                2. CUSTOM 和 PERSONAL 帳簿，創建者(ownerId) 或 OWNER/ADMIN 可以刪除/編輯
-            */}
             {((user?.familyRole === "OWNER" || user?.familyRole === "ADMIN") || w.ownerId === user?.id) && (
               <div className="flex items-center gap-1 ml-2">
+                {/* 封存 / 解封存 */}
+                <button
+                  title={w.isArchived ? "解除封存" : "封存帳簿"}
+                  onClick={() => startTransition(async () => { await archiveWallet(w.id, !w.isArchived); router.refresh(); })}
+                  className="w-7 h-7 flex-shrink-0 rounded-lg flex items-center justify-center transition-colors"
+                  style={{ background: w.isArchived ? "rgba(99,102,241,0.15)" : "var(--bg-card)", border: "1px solid var(--border)", color: w.isArchived ? "#6366f1" : "var(--text-muted)" }}>
+                  <span className="text-[11px]">{w.isArchived ? "📂" : "🗄️"}</span>
+                </button>
                 <button onClick={() => setEditingWallet(w)} className="w-7 h-7 flex-shrink-0 rounded-lg flex items-center justify-center transition-colors" style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
                   <Edit2 size={12} />
                 </button>

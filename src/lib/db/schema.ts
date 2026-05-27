@@ -192,6 +192,10 @@ export const wallets = sqliteTable("wallets", {
   currency: text("currency").notNull().default("TWD"),
   isSplitEnabled: integer("is_split_enabled", { mode: "boolean" }).notNull().default(false),
   monthlyBudget: real("monthly_budget"), // 每月預算（可選，null 代表不設定）
+  // -- 期間限定帳簿 --
+  startDate: text("start_date"),   // ISO 格式 "YYYY-MM-DD"，null = 無限制
+  endDate: text("end_date"),       // ISO 格式 "YYYY-MM-DD"，null = 無限制
+  isArchived: integer("is_archived", { mode: "boolean" }).notNull().default(false), // 封存後隱藏於日常記帳
   createdAt: integer("created_at").default(sql`(cast(strftime('%s', 'now') as integer))`),
 });
 

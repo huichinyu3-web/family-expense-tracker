@@ -96,7 +96,18 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
   const handleWalletToggle = (id: string) => {
     setSelectedWallets(prev => {
       const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
-      if (next.length === 1) localStorage.setItem("lastSelectedWallet", next[0]);
+      if (next.length === 1) {
+        localStorage.setItem("lastSelectedWallet", next[0]);
+        // 若該帳簿有設定起訖日期，自動切換日期篩選器
+        const w = wallets.find((w: any) => w.id === next[0]);
+        if (w?.startDate) setStartDate(w.startDate);
+        if (w?.endDate) setEndDate(w.endDate);
+      }
+      // 若取消選取（變成 0 或多選），清除自動帶入的日期
+      if (next.length !== 1) {
+        setStartDate("");
+        setEndDate("");
+      }
       return next;
     });
   };
