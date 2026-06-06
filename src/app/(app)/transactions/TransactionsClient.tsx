@@ -352,7 +352,7 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
           <div>
             <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>支出</p>
             <p className="text-sm font-bold" style={{ color: "#f43f5e" }}>
-              NT${totalExpense.toLocaleString()}
+              ${totalExpense.toLocaleString()}
             </p>
           </div>
         </div>
@@ -361,7 +361,7 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
           <div>
             <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>收入</p>
             <p className="text-sm font-bold" style={{ color: "#10b981" }}>
-              NT${totalIncome.toLocaleString()}
+              ${totalIncome.toLocaleString()}
             </p>
           </div>
         </div>
@@ -385,7 +385,7 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
               <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
                 {txs.filter(t => t.type === "EXPENSE")
                   .reduce((s, t) => s + Math.abs(t.amount), 0) > 0 &&
-                  `支出 NT$${txs.filter(t => t.type === "EXPENSE").reduce((s, t) => s + Math.abs(t.amount), 0).toLocaleString()}`
+                  `支出 $${txs.filter(t => t.type === "EXPENSE").reduce((s, t) => s + Math.abs(t.amount), 0).toLocaleString()}`
                 }
               </span>
             </div>
@@ -421,7 +421,7 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
                       {/* 金額 */}
                       <span className="font-bold text-[15px] tabular-nums flex-shrink-0 ml-2"
                         style={{ color: tx.type === "INCOME" ? "#10b981" : "var(--text-primary)" }}>
-                        {tx.type === "INCOME" ? "+" : ""}NT${Math.abs(tx.amount).toLocaleString()}
+                        {tx.type === "INCOME" ? "+" : ""}{tx.currency || "TWD"} {Math.abs(tx.amount).toLocaleString()}
                       </span>
                     </div>
                     
@@ -484,7 +484,7 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
                     {selectedTx.category?.name} <span className="text-[var(--text-muted)] font-normal text-xs ml-2">{new Date(selectedTx.date).toLocaleDateString()}</span>
                   </p>
                   <span className="font-semibold tabular-nums text-2xl" style={{ color: selectedTx.type === "INCOME" ? "#10b981" : (selectedTx.amount < 0 ? "#f43f5e" : "var(--text-primary)") }}>
-                    {selectedTx.type === "INCOME" ? "+" : ""}NT${Math.abs(selectedTx.amount).toLocaleString()}
+                    {selectedTx.type === "INCOME" ? "+" : ""}{selectedTx.currency || "TWD"} {Math.abs(selectedTx.amount).toLocaleString()}
                   </span>
                 </div>
                 <button onClick={() => setSelectedTx(null)} className="p-2 bg-[var(--bg-card)] hover:bg-[var(--bg-surface)] rounded-full transition-colors border border-[var(--border)]">
