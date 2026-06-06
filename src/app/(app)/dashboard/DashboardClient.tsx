@@ -15,12 +15,12 @@ const CHART_COLORS = ["#f43f5e", "#10b981"];
 const MONTHS = ["一月","二月","三月","四月","五月","六月","七月","八月","九月","十月","十一月","十二月"];
 const TYPES    = ["全部", "支出", "收入"];
 
-function AnimatedAmount({ value, isIncome = false }: { value: number; isIncome?: boolean }) {
+function AnimatedAmount({ value, isIncome = false, currency }: { value: number; isIncome?: boolean; currency?: string }) {
   const color = isIncome ? "#10b981" : value < 0 ? "#f43f5e" : "var(--text-primary)";
   const prefix = isIncome ? "+" : value < 0 ? "" : "";
   return (
     <span style={{ color }} className="font-semibold tabular-nums">
-      {prefix}NT${Math.abs(value).toLocaleString()}
+      {prefix}{currency || "TWD"} {Math.abs(value).toLocaleString()}
     </span>
   );
 }
@@ -237,7 +237,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
   // ── 2. 智能洞察小語 (Smart Insights) ──
   const smartInsight = useMemo(() => {
     if (selectedWallet && (selectedWallet.balance || 0) < 0) {
-      return { text: `⚠️ 注意！【${selectedWallet.name}】餘額已呈現負數 (NT$ ${(selectedWallet.balance || 0).toLocaleString()})，請留意資金狀況。`, type: "danger" };
+      return { text: `⚠️ 注意！【${selectedWallet.name}】餘額已呈現負數 ($ ${(selectedWallet.balance || 0).toLocaleString()})，請留意資金狀況。`, type: "danger" };
     }
     if (totalExpense === 0 && totalIncome === 0) {
       return { text: "📝 這個月還沒有任何記帳紀錄，好的開始！", type: "success" };
@@ -249,10 +249,10 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
 
     // 預算超支提醒（只有設定了預算才顯示）
     if (effectiveBudget != null && spentPct >= 100) {
-      return { text: `🚨 預算超標！本月花費已超過設定的 NT$${effectiveBudget.toLocaleString()} 預算，請留意控制開銷！`, type: "danger" };
+      return { text: `🚨 預算超標！本月花費已超過設定的 $${effectiveBudget.toLocaleString()} 預算，請留意控制開銷！`, type: "danger" };
     }
     if (effectiveBudget != null && spentPct > 80) {
-      return { text: `⚠️ 提醒：本月花費已達預算 ${spentPct.toFixed(0)}%，距離上限僅剩 NT$${(effectiveBudget - totalExpense).toLocaleString()}！`, type: "warning" };
+      return { text: `⚠️ 提醒：本月花費已達預算 ${spentPct.toFixed(0)}%，距離上限僅剩 $${(effectiveBudget - totalExpense).toLocaleString()}！`, type: "warning" };
     }
 
     // 尚未設定預算提示
@@ -571,7 +571,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
             <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>區間淨結餘</p>
             <CountUp
               end={periodSavings}
-              prefix="NT$"
+              prefix="$"
               duration={1400}
               className="text-2xl font-bold"
               style={{ color: periodSavings >= 0 ? "#10b981" : "#f43f5e" }}
@@ -592,11 +592,11 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
         <div className="mt-4">
           <div className="flex justify-between items-end text-xs mb-2" style={{ color: "var(--text-muted)" }}>
             <span className="flex flex-col gap-0.5 text-left">
-              <span>預估總支出 <span className="font-semibold text-[var(--text-primary)]">NT${totalExpense.toLocaleString()}</span></span>
+              <span>預估總支出 <span className="font-semibold text-[var(--text-primary)]">${totalExpense.toLocaleString()}</span></span>
               <span className="text-[10px] opacity-80">已付 ${pastExpense.toLocaleString()}{futureExpense > 0 ? ` / 待付 $${futureExpense.toLocaleString()}` : ""}</span>
             </span>
             <span className="text-right flex flex-col gap-0.5">
-              <span>本月預算 <span className="font-semibold text-[var(--text-primary)]">{effectiveBudget != null ? `NT$${effectiveBudget.toLocaleString()}` : "未設定"}</span></span>
+              <span>本月預算 <span className="font-semibold text-[var(--text-primary)]">{effectiveBudget != null ? `$${effectiveBudget.toLocaleString()}` : "未設定"}</span></span>
               <span className="text-[10px] opacity-80">已收 ${pastIncome.toLocaleString()}{futureIncome > 0 ? ` / 待收 $${futureIncome.toLocaleString()}` : ""}</span>
             </span>
           </div>
@@ -637,7 +637,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
               <div key={idx} className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-semibold" style={{ color: "var(--text-primary)" }}>{cat.name}</span>
-                  <span className="font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>NT${cat.amount.toLocaleString()}</span>
+                  <span className="font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>${cat.amount.toLocaleString()}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex-1 h-2 rounded-full bg-[var(--bg-surface)] overflow-hidden border border-[var(--border)]">
@@ -672,17 +672,17 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
               </p>
             </div>
             <span className="text-xl font-black tabular-nums" style={{ color: splitState.myNetBalance >= 0 ? "#10b981" : "#f43f5e" }}>
-              {splitState.myNetBalance > 0 ? "+" : ""}NT${Math.abs(Math.round(splitState.myNetBalance)).toLocaleString()}
+              {splitState.myNetBalance > 0 ? "+" : ""}${Math.abs(Math.round(splitState.myNetBalance)).toLocaleString()}
             </span>
           </div>
           <div className="flex gap-2 relative z-10 text-xs mt-3 pt-3 border-t border-[var(--border)]">
             <div className="flex-1">
               <span style={{ color: "var(--text-muted)" }}>我已代墊</span>
-              <p className="font-bold mt-0.5" style={{ color: "var(--text-primary)" }}>NT${Math.round(splitState.myPaid).toLocaleString()}</p>
+              <p className="font-bold mt-0.5" style={{ color: "var(--text-primary)" }}>${Math.round(splitState.myPaid).toLocaleString()}</p>
             </div>
             <div className="flex-1">
               <span style={{ color: "var(--text-muted)" }}>我應負擔 ({splitState.membersCount}人均分)</span>
-              <p className="font-bold mt-0.5" style={{ color: "var(--text-primary)" }}>NT${Math.round(splitState.myShare).toLocaleString()}</p>
+              <p className="font-bold mt-0.5" style={{ color: "var(--text-primary)" }}>${Math.round(splitState.myShare).toLocaleString()}</p>
             </div>
           </div>
           {/* 前往結算按鈕 */}
@@ -713,7 +713,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
           </div>
           <CountUp
             end={totalExpense}
-            prefix="NT$"
+            prefix="$"
             duration={1200}
             className="text-lg font-bold"
             style={{ color: "#f43f5e" }}
@@ -731,7 +731,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
           </div>
           <CountUp
             end={totalIncome}
-            prefix="NT$"
+            prefix="$"
             duration={1200}
             className="text-lg font-bold"
             style={{ color: "#10b981" }}
@@ -795,7 +795,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
                   </div>
 
                   {/* 金額 */}
-                  <AnimatedAmount value={tx.amount} isIncome={tx.type === "INCOME"} />
+                  <AnimatedAmount value={tx.amount} isIncome={tx.type === "INCOME"} currency={tx.currency} />
                 </motion.div>
               );
             })}
@@ -820,7 +820,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
                   <p className="text-sm font-bold text-[var(--text-primary)]">
                     {selectedTx.category?.name} <span className="text-[var(--text-muted)] font-normal text-xs ml-2">{new Date(selectedTx.date).toLocaleDateString()}</span>
                   </p>
-                  <AnimatedAmount value={selectedTx.amount} isIncome={selectedTx.type === "INCOME"} />
+                  <AnimatedAmount value={selectedTx.amount} isIncome={selectedTx.type === "INCOME"} currency={selectedTx.currency} />
                 </div>
                 <button onClick={() => setSelectedTx(null)} className="p-2 bg-[var(--bg-card)] rounded-full">
                   <X size={20} className="text-[var(--text-secondary)]" />

@@ -38,14 +38,14 @@ function BalanceRow({ balance }: { balance: NetBalance }) {
           {balance.name}
         </p>
         <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-          代墊 NT${Math.round(balance.paid).toLocaleString()} · 應付 NT${Math.round(balance.share).toLocaleString()}
+          代墊 ${Math.round(balance.paid).toLocaleString()} · 應付 ${Math.round(balance.share).toLocaleString()}
         </p>
       </div>
       <span
         className="text-sm font-bold tabular-nums"
         style={{ color: isPositive ? "#10b981" : "#f43f5e" }}
       >
-        {isPositive ? "+" : ""}NT${Math.round(balance.net).toLocaleString()}
+        {isPositive ? "+" : ""}${Math.round(balance.net).toLocaleString()}
       </span>
     </div>
   );
@@ -99,7 +99,7 @@ function DebtCard({
         {/* 箭頭 + 金額 */}
         <div className="flex-1 flex flex-col items-center gap-1">
           <span className="text-base font-black tabular-nums" style={{ color: settled ? "#10b981" : "#6366f1" }}>
-            NT${debt.amount.toLocaleString()}
+            ${debt.amount.toLocaleString()}
           </span>
           <div className="flex items-center gap-1 w-full">
             <div className="flex-1 h-px" style={{ background: settled ? "rgba(16,185,129,0.3)" : "rgba(99,102,241,0.3)" }} />

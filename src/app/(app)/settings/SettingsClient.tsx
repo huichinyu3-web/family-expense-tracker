@@ -205,7 +205,7 @@ function AddWalletSheet({ onClose, onDone, familyRole, familyMembers }: { onClos
         <div className="mb-6">
           <label className="block text-xs mb-1" style={{ color: "var(--text-muted)" }}>每月預算（選填）</label>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color: "var(--text-muted)" }}>NT$</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color: "var(--text-muted)" }}>{currency}</span>
             <input
               type="number"
               min="0"
@@ -398,7 +398,7 @@ function EditWalletSheet({ wallet, onClose, onDone, familyRole, familyMembers }:
         <div className="mb-6">
           <label className="block text-xs mb-1" style={{ color: "var(--text-muted)" }}>每月預算（選填）</label>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color: "var(--text-muted)" }}>NT$</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold" style={{ color: "var(--text-muted)" }}>{currency}</span>
             <input
               type="number"
               min="0"
