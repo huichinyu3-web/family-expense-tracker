@@ -204,29 +204,42 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
     });
   }, [transactions, monthIdx, year, selectedWallets, selectedMembers, typeFilter, categoryFilter, merchantFilter, minAmount, maxAmount, startDate, endDate, search]);
 
+  // 若只選了一個帳簿，才顯示拆帳/詳細餘額等資訊（須先定義，後面統計用到）
+  const selectedWallet = selectedWallets.length === 1 ? wallets.find((w: any) => w.id === selectedWallets[0]) : null;
+
+  // 期間帳簿：抓該帳簿所有交易（不受日期篩選器限制）
+  // 讓三月購買的機票也能被納入旅行總費
+  const walletAllTx = selectedWallet?.startDate
+    ? transactions.filter((tx: any) => tx.walletId === selectedWallet.id)
+    : null;
+  const walletAllExpenses = walletAllTx?.filter((tx: any) => tx.type === "EXPENSE") ?? null;
+  const walletAllIncomes  = walletAllTx?.filter((tx: any) => tx.type === "INCOME")  ?? null;
+
+  // 統計來源：期間帳簿用 walletAll，普通帳簿用 filteredTx
+  const statExpenses = walletAllExpenses ?? filteredTx.filter((tx: any) => tx.type === "EXPENSE");
+  const statIncomes  = walletAllIncomes  ?? filteredTx.filter((tx: any) => tx.type === "INCOME");
+
+  // filteredTx 的 expenses/incomes 僅供明細列表使用
   const expenses = filteredTx.filter((tx: any) => tx.type === "EXPENSE");
-  const totalExpense = expenses.reduce((sum: number, tx: any) => sum + toTWD(tx.amount, tx.currency), 0);
+  const totalExpense = statExpenses.reduce((sum: number, tx: any) => sum + toTWD(tx.amount, tx.currency), 0);
   const incomes = filteredTx.filter((tx: any) => tx.type === "INCOME");
-  const totalIncome = incomes.reduce((sum: number, tx: any) => sum + toTWD(tx.amount, tx.currency), 0);
+  const totalIncome = statIncomes.reduce((sum: number, tx: any) => sum + toTWD(tx.amount, tx.currency), 0);
   
   // 計算已付與待付 (以今日為分界)
-  const pastExpense = expenses.filter((tx: any) => tx.date <= now.getTime()).reduce((sum: number, tx: any) => sum + toTWD(tx.amount, tx.currency), 0);
-  const futureExpense = expenses.filter((tx: any) => tx.date > now.getTime()).reduce((sum: number, tx: any) => sum + toTWD(tx.amount, tx.currency), 0);
+  const pastExpense = statExpenses.filter((tx: any) => tx.date <= now.getTime()).reduce((sum: number, tx: any) => sum + toTWD(tx.amount, tx.currency), 0);
+  const futureExpense = statExpenses.filter((tx: any) => tx.date > now.getTime()).reduce((sum: number, tx: any) => sum + toTWD(tx.amount, tx.currency), 0);
   
   // 計算已收與待收 (以今日為分界)
-  const pastIncome = incomes.filter((tx: any) => tx.date <= now.getTime()).reduce((sum: number, tx: any) => sum + toTWD(tx.amount, tx.currency), 0);
-  const futureIncome = incomes.filter((tx: any) => tx.date > now.getTime()).reduce((sum: number, tx: any) => sum + toTWD(tx.amount, tx.currency), 0);
-
-  // 若只選了一個帳簿，才顯示拆帳/詳細餘額等資訊
-  const selectedWallet = selectedWallets.length === 1 ? wallets.find((w: any) => w.id === selectedWallets[0]) : null;
+  const pastIncome = statIncomes.filter((tx: any) => tx.date <= now.getTime()).reduce((sum: number, tx: any) => sum + toTWD(tx.amount, tx.currency), 0);
+  const futureIncome = statIncomes.filter((tx: any) => tx.date > now.getTime()).reduce((sum: number, tx: any) => sum + toTWD(tx.amount, tx.currency), 0);
   
   // 計算拆帳狀態
   let splitState = null;
   if (selectedWallet?.isSplitEnabled) {
     // 當前帳簿總人數
     const membersCount = selectedWallet.visibility === "FAMILY" ? familyMembersCount : (selectedWallet.walletMembers?.length || 0) + 1;
-    // 我代墊的總額（TWD）
-    const myPaid = filteredTx.filter((tx: any) => tx.type === "EXPENSE" && tx.paidByUserId === currentUserId).reduce((s: number, t: any) => s + toTWD(t.amount, t.currency), 0);
+    // 我代墊的總額（TWD）——期間帳簿用 statExpenses
+    const myPaid = statExpenses.filter((tx: any) => tx.paidByUserId === currentUserId).reduce((s: number, t: any) => s + toTWD(t.amount, t.currency), 0);
     // 我應負擔的份額 (總支出 / 總人數)
     const myShare = membersCount > 0 ? totalExpense / membersCount : 0;
     // 淨餘額 (正: 別人欠我, 負: 我欠別人)
@@ -262,9 +275,10 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
 
   // ── 1. 分類支出排行 (Top Categories Breakdown) ──
   const categoryExpenses = useMemo(() => {
-    const expenses = filteredTx.filter((tx: any) => tx.type === "EXPENSE");
+    // 期間帳簿：用該帳簿全部交易（包含旅行前購買）
+    const src = walletAllExpenses ?? filteredTx.filter((tx: any) => tx.type === "EXPENSE");
     const catMap = new Map<string, number>();
-    expenses.forEach((tx: any) => {
+    src.forEach((tx: any) => {
       const catName = tx.category?.name || "未分類";
       catMap.set(catName, (catMap.get(catName) || 0) + toTWD(tx.amount, tx.currency));
     });
@@ -273,7 +287,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
       .map(([name, amount]) => ({ name, amount, percent: totalExpense > 0 ? (amount / totalExpense) * 100 : 0 }))
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 3);
-  }, [filteredTx, totalExpense]);
+  }, [filteredTx, walletAllExpenses, totalExpense]);
 
   // ── 2. 智能洞察小語 (Smart Insights) ──
   const smartInsight = useMemo(() => {
