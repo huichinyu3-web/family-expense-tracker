@@ -59,6 +59,38 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
   const [showSettlement, setShowSettlement] = useState(false);
 
+  // 即時匯率（1外幣 = ? TWD）——從 frankfurter.app 地區拉取
+  const [fxRates, setFxRates] = useState<Record<string, number>>({});
+  const [fxUpdatedAt, setFxUpdatedAt] = useState<string | null>(null);
+
+  useEffect(() => {
+    const SUPPORTED = ["USD","JPY","EUR","HKD","CNY","KRW","GBP"];
+    // 找出所有交易裡出現的非-TWD 幣別
+    const usedForeign = Array.from(
+      new Set(transactions.map((t: any) => t.currency).filter((c: string) => c && c !== "TWD" && SUPPORTED.includes(c)))
+    ) as string[];
+    if (usedForeign.length === 0) return;
+    fetch(`https://api.frankfurter.app/latest?from=TWD&to=${usedForeign.join(",")}`, { signal: AbortSignal.timeout(5000) })
+      .then(r => r.json())
+      .then(data => {
+        const rates: Record<string, number> = {};
+        usedForeign.forEach((c: string) => {
+          if (data.rates?.[c]) rates[c] = 1 / data.rates[c]; // 1 外幣 = ? TWD
+        });
+        setFxRates(rates);
+        const now2 = new Date();
+        setFxUpdatedAt(`${now2.getMonth()+1}/${now2.getDate()} ${now2.getHours()}:${now2.getMinutes().toString().padStart(2,'0')}`);
+      })
+      .catch(() => {}); // API 失敗就保持原來 1:1 的計算
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 將任意幣別金額轉換為台幣 (TWD)
+  const toTWD = (amount: number, currency?: string) => {
+    const rate = (!currency || currency === "TWD") ? 1 : (fxRates[currency] ?? 1);
+    return Math.abs(amount) * rate;
+  };
+
   // 極簡新手視覺導覽狀態
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -164,17 +196,17 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
   }, [transactions, monthIdx, year, selectedWallets, selectedMembers, typeFilter, categoryFilter, merchantFilter, minAmount, maxAmount, startDate, endDate, search]);
 
   const expenses = filteredTx.filter((tx: any) => tx.type === "EXPENSE");
-  const totalExpense = expenses.reduce((sum: number, tx: any) => sum + Math.abs(tx.amount), 0);
+  const totalExpense = expenses.reduce((sum: number, tx: any) => sum + toTWD(tx.amount, tx.currency), 0);
   const incomes = filteredTx.filter((tx: any) => tx.type === "INCOME");
-  const totalIncome = incomes.reduce((sum: number, tx: any) => sum + tx.amount, 0);
+  const totalIncome = incomes.reduce((sum: number, tx: any) => sum + toTWD(tx.amount, tx.currency), 0);
   
   // 計算已付與待付 (以今日為分界)
-  const pastExpense = expenses.filter((tx: any) => tx.date <= now.getTime()).reduce((sum: number, tx: any) => sum + Math.abs(tx.amount), 0);
-  const futureExpense = expenses.filter((tx: any) => tx.date > now.getTime()).reduce((sum: number, tx: any) => sum + Math.abs(tx.amount), 0);
+  const pastExpense = expenses.filter((tx: any) => tx.date <= now.getTime()).reduce((sum: number, tx: any) => sum + toTWD(tx.amount, tx.currency), 0);
+  const futureExpense = expenses.filter((tx: any) => tx.date > now.getTime()).reduce((sum: number, tx: any) => sum + toTWD(tx.amount, tx.currency), 0);
   
   // 計算已收與待收 (以今日為分界)
-  const pastIncome = incomes.filter((tx: any) => tx.date <= now.getTime()).reduce((sum: number, tx: any) => sum + tx.amount, 0);
-  const futureIncome = incomes.filter((tx: any) => tx.date > now.getTime()).reduce((sum: number, tx: any) => sum + tx.amount, 0);
+  const pastIncome = incomes.filter((tx: any) => tx.date <= now.getTime()).reduce((sum: number, tx: any) => sum + toTWD(tx.amount, tx.currency), 0);
+  const futureIncome = incomes.filter((tx: any) => tx.date > now.getTime()).reduce((sum: number, tx: any) => sum + toTWD(tx.amount, tx.currency), 0);
 
   // 若只選了一個帳簿，才顯示拆帳/詳細餘額等資訊
   const selectedWallet = selectedWallets.length === 1 ? wallets.find((w: any) => w.id === selectedWallets[0]) : null;
@@ -184,8 +216,8 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
   if (selectedWallet?.isSplitEnabled) {
     // 當前帳簿總人數
     const membersCount = selectedWallet.visibility === "FAMILY" ? familyMembersCount : (selectedWallet.walletMembers?.length || 0) + 1;
-    // 我代墊的總額
-    const myPaid = filteredTx.filter((tx: any) => tx.type === "EXPENSE" && tx.paidByUserId === currentUserId).reduce((s: number, t: any) => s + Math.abs(t.amount), 0);
+    // 我代墊的總額（TWD）
+    const myPaid = filteredTx.filter((tx: any) => tx.type === "EXPENSE" && tx.paidByUserId === currentUserId).reduce((s: number, t: any) => s + toTWD(t.amount, t.currency), 0);
     // 我應負擔的份額 (總支出 / 總人數)
     const myShare = membersCount > 0 ? totalExpense / membersCount : 0;
     // 淨餘額 (正: 別人欠我, 負: 我欠別人)
@@ -225,7 +257,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
     const catMap = new Map<string, number>();
     expenses.forEach((tx: any) => {
       const catName = tx.category?.name || "未分類";
-      catMap.set(catName, (catMap.get(catName) || 0) + Math.abs(tx.amount));
+      catMap.set(catName, (catMap.get(catName) || 0) + toTWD(tx.amount, tx.currency));
     });
     
     return Array.from(catMap.entries())
@@ -571,7 +603,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
             <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>區間淨結餘</p>
             <CountUp
               end={periodSavings}
-              prefix="$"
+              prefix="NT$"
               duration={1400}
               className="text-2xl font-bold"
               style={{ color: periodSavings >= 0 ? "#10b981" : "#f43f5e" }}
@@ -592,12 +624,12 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
         <div className="mt-4">
           <div className="flex justify-between items-end text-xs mb-2" style={{ color: "var(--text-muted)" }}>
             <span className="flex flex-col gap-0.5 text-left">
-              <span>預估總支出 <span className="font-semibold text-[var(--text-primary)]">${totalExpense.toLocaleString()}</span></span>
-              <span className="text-[10px] opacity-80">已付 ${pastExpense.toLocaleString()}{futureExpense > 0 ? ` / 待付 $${futureExpense.toLocaleString()}` : ""}</span>
+              <span>預估總支出 <span className="font-semibold text-[var(--text-primary)]">NT${Math.round(totalExpense).toLocaleString()}</span></span>
+              <span className="text-[10px] opacity-80">已付 NT${Math.round(pastExpense).toLocaleString()}{futureExpense > 0 ? ` / 待付 NT$${Math.round(futureExpense).toLocaleString()}` : ""}</span>
             </span>
             <span className="text-right flex flex-col gap-0.5">
-              <span>本月預算 <span className="font-semibold text-[var(--text-primary)]">{effectiveBudget != null ? `$${effectiveBudget.toLocaleString()}` : "未設定"}</span></span>
-              <span className="text-[10px] opacity-80">已收 ${pastIncome.toLocaleString()}{futureIncome > 0 ? ` / 待收 $${futureIncome.toLocaleString()}` : ""}</span>
+              <span>本月預算 <span className="font-semibold text-[var(--text-primary)]">{effectiveBudget != null ? `NT$${effectiveBudget.toLocaleString()}` : "未設定"}</span></span>
+              <span className="text-[10px] opacity-80">已收 NT${Math.round(pastIncome).toLocaleString()}{futureIncome > 0 ? ` / 待收 NT$${Math.round(futureIncome).toLocaleString()}` : ""}</span>
             </span>
           </div>
           {effectiveBudget != null ? (
@@ -637,7 +669,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
               <div key={idx} className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-semibold" style={{ color: "var(--text-primary)" }}>{cat.name}</span>
-                  <span className="font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>${cat.amount.toLocaleString()}</span>
+                  <span className="font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>NT${Math.round(cat.amount).toLocaleString()}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex-1 h-2 rounded-full bg-[var(--bg-surface)] overflow-hidden border border-[var(--border)]">
@@ -672,17 +704,17 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
               </p>
             </div>
             <span className="text-xl font-black tabular-nums" style={{ color: splitState.myNetBalance >= 0 ? "#10b981" : "#f43f5e" }}>
-              {splitState.myNetBalance > 0 ? "+" : ""}${Math.abs(Math.round(splitState.myNetBalance)).toLocaleString()}
+              {splitState.myNetBalance > 0 ? "+" : ""}NT${Math.abs(Math.round(splitState.myNetBalance)).toLocaleString()}
             </span>
           </div>
           <div className="flex gap-2 relative z-10 text-xs mt-3 pt-3 border-t border-[var(--border)]">
             <div className="flex-1">
               <span style={{ color: "var(--text-muted)" }}>我已代墊</span>
-              <p className="font-bold mt-0.5" style={{ color: "var(--text-primary)" }}>${Math.round(splitState.myPaid).toLocaleString()}</p>
+              <p className="font-bold mt-0.5" style={{ color: "var(--text-primary)" }}>NT${Math.round(splitState.myPaid).toLocaleString()}</p>
             </div>
             <div className="flex-1">
               <span style={{ color: "var(--text-muted)" }}>我應負擔 ({splitState.membersCount}人均分)</span>
-              <p className="font-bold mt-0.5" style={{ color: "var(--text-primary)" }}>${Math.round(splitState.myShare).toLocaleString()}</p>
+              <p className="font-bold mt-0.5" style={{ color: "var(--text-primary)" }}>NT${Math.round(splitState.myShare).toLocaleString()}</p>
             </div>
           </div>
           {/* 前往結算按鈕 */}
@@ -713,11 +745,12 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
           </div>
           <CountUp
             end={totalExpense}
-            prefix="$"
+            prefix="NT$"
             duration={1200}
             className="text-lg font-bold"
             style={{ color: "#f43f5e" }}
           />
+          {fxUpdatedAt && <p className="text-[9px] mt-0.5" style={{ color: "var(--text-muted)" }}>🌐 {fxUpdatedAt} 匯率換算</p>}
         </div>
 
         {/* 收入 */}
@@ -731,7 +764,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
           </div>
           <CountUp
             end={totalIncome}
-            prefix="$"
+            prefix="NT$"
             duration={1200}
             className="text-lg font-bold"
             style={{ color: "#10b981" }}
