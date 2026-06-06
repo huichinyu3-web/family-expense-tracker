@@ -182,9 +182,8 @@ export default function SettlementModal({ walletId, walletName, familyId, curren
     setIsFetchingRates(true);
     try {
       const targets = foreignCurrencies.join(",");
-      // frankfurter.app 不支援 TWD 為基準幣（from=TWD 會 404）
-      // 改用 from=USD，同時查 TWD 和各外幣，交叉換算 1外幣=?TWD
-      const res = await fetch(`https://api.frankfurter.app/latest?from=USD&to=${targets},TWD`, { signal: AbortSignal.timeout(8000) });
+      // 使用 open.er-api.com（免費、無 Key、支援 TWD）
+      const res = await fetch("https://open.er-api.com/v6/latest/USD", { signal: AbortSignal.timeout(8000) });
       if (!res.ok) throw new Error("API error");
       const data = await res.json();
       const usdToTWD = data.rates?.["TWD"];
@@ -193,7 +192,7 @@ export default function SettlementModal({ walletId, walletName, familyId, curren
       foreignCurrencies.forEach(c => {
         const usdToC = data.rates?.[c];
         if (usdToC) {
-          liveRates[c] = (usdToTWD / usdToC).toFixed(4); // 1 外幣 = ? TWD
+          liveRates[c] = (usdToTWD / usdToC).toFixed(4); // 1 外幣 = ? TWD（交叉匯率）
         } else {
           liveRates[c] = FALLBACK_RATES[c] || "1";
         }

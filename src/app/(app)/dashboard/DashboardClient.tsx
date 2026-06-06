@@ -70,20 +70,18 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
     ) as string[];
     if (usedForeign.length === 0) return;
 
-    // frankfurter.app 不支援 TWD 作為基準幣（from=TWD 會 404）
-    // 改用 from=USD，同時查詢所有外幣和 TWD，再做交叉換算：
-    // 1 外幣 = (USD→TWD rate) / (USD→外幣 rate) TWD
-    const targets = [...usedForeign, "TWD"].join(",");
-    fetch(`https://api.frankfurter.app/latest?from=USD&to=${targets}`, { signal: AbortSignal.timeout(8000) })
+    // 使用 open.er-api.com（免費、無 Key、支援 TWD）
+    // 取得所有幣別相對於 USD 的匯率，再計算 1外幣 = ?TWD
+    fetch("https://open.er-api.com/v6/latest/USD", { signal: AbortSignal.timeout(8000) })
       .then(r => { if (!r.ok) throw new Error("API error"); return r.json(); })
       .then(data => {
         const usdToTWD = data.rates?.["TWD"];
-        if (!usdToTWD) return; // 防呆
+        if (!usdToTWD) throw new Error("TWD rate missing");
         const rates: Record<string, number> = {};
         usedForeign.forEach((c: string) => {
           const usdToC = data.rates?.[c];
           if (usdToC) {
-            rates[c] = usdToTWD / usdToC; // 1 外幣 = ? TWD
+            rates[c] = usdToTWD / usdToC; // 1 外幣 = ? TWD（交叉匯率）
           } else {
             console.warn(`[FX] 不支援幣別：${c}，此幣別將以 1:1 計算`);
           }
@@ -92,7 +90,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
         const now2 = new Date();
         setFxUpdatedAt(`${now2.getMonth()+1}/${now2.getDate()} ${now2.getHours()}:${now2.getMinutes().toString().padStart(2,'0')}`);
       })
-      .catch(() => {}); // API 失敗靜默處理（TWD 帳簿不受影響）
+      .catch(() => {}); // API 失敗靜默處理（純 TWD 帳簿不受影響）
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
