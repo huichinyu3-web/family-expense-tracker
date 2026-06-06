@@ -564,18 +564,63 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
             const isSel = selectedWallets.includes(w.id);
             return (
               <button key={w.id} onClick={() => handleWalletToggle(w.id)}
-                className="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                className="px-4 py-2 rounded-xl text-xs font-bold transition-all flex flex-col items-start gap-0.5"
               style={{
                 background: isSel ? "rgba(16,185,129,0.15)" : "var(--bg-card)",
                 color: isSel ? "#10b981" : "var(--text-secondary)",
                 border: isSel ? "1px solid rgba(16,185,129,0.4)" : "1px solid var(--border)",
               }}>
               <span>{w.name}</span>
+              {w.startDate && (
+                <span className="text-[9px] font-normal opacity-70">
+                  {w.startDate.slice(5).replace("-","/")} – {w.endDate ? w.endDate.slice(5).replace("-","/") : "∞"}
+                </span>
+              )}
             </button>
           );
         })}
         </div>
       </div>
+
+      {/* ── 期間帳簿提示橫條 ── */}
+      {selectedWallet?.startDate && (() => {
+        const s = new Date(selectedWallet.startDate);
+        const e = selectedWallet.endDate ? new Date(selectedWallet.endDate) : null;
+        const totalDays = e ? Math.round((e.getTime() - s.getTime()) / 86400000) + 1 : null;
+        const today = new Date();
+        const elapsed = Math.min(Math.max(Math.round((today.getTime() - s.getTime()) / 86400000) + 1, 1), totalDays ?? 1);
+        const isActive = today >= s && (!e || today <= e);
+        const isEnded = e && today > e;
+        const fmt = (d: Date) => `${d.getMonth()+1}/${d.getDate()}`;
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 px-4 py-3 rounded-2xl flex items-center gap-3"
+            style={{ background: isEnded ? "rgba(99,102,241,0.06)" : "rgba(16,185,129,0.08)", border: `1px solid ${isEnded ? "rgba(99,102,241,0.2)" : "rgba(16,185,129,0.25)"}` }}
+          >
+            <span className="text-xl">{isEnded ? "🏁" : isActive ? "✈️" : "📅"}</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold" style={{ color: "var(--text-primary)" }}>
+                {selectedWallet.name}
+              </p>
+              <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                {fmt(s)} – {e ? fmt(e) : "不限"}
+                {totalDays && ` · 共 ${totalDays} 天`}
+              </p>
+            </div>
+            <span
+              className="text-[10px] font-bold px-2 py-1 rounded-lg flex-shrink-0"
+              style={{
+                background: isEnded ? "rgba(99,102,241,0.12)" : isActive ? "rgba(16,185,129,0.15)" : "rgba(245,158,11,0.15)",
+                color: isEnded ? "#6366f1" : isActive ? "#10b981" : "#d97706"
+              }}
+            >
+              {isEnded ? "已結束" : isActive ? `第 ${elapsed} 天` : "未開始"}
+            </span>
+          </motion.div>
+        );
+      })()}
 
       {/* ── 核心視覺：預算甜甜圈圖 ── */}
       <motion.div
@@ -780,6 +825,44 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
           />
         </div>
       </div>
+
+      {/* ── 期間帳簿：每日平均消費 ── */}
+      {selectedWallet?.startDate && selectedWallet?.endDate && (() => {
+        const s = new Date(selectedWallet.startDate);
+        const e = new Date(selectedWallet.endDate);
+        const totalDays = Math.max(Math.round((e.getTime() - s.getTime()) / 86400000) + 1, 1);
+        const today = new Date();
+        const elapsedDays = Math.min(Math.max(Math.round((today.getTime() - s.getTime()) / 86400000) + 1, 1), totalDays);
+        const avgPerDay = elapsedDays > 0 ? totalExpense / elapsedDays : 0;
+        const projectedTotal = avgPerDay * totalDays;
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-card p-4 mb-6 flex items-center gap-4"
+          >
+            <div className="flex-1">
+              <p className="text-[10px] mb-0.5" style={{ color: "var(--text-muted)" }}>📊 每日均攤</p>
+              <p className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>
+                NT${Math.round(avgPerDay).toLocaleString()}
+                <span className="text-xs font-normal ml-1" style={{ color: "var(--text-muted)" }}>/天</span>
+              </p>
+              <p className="text-[9px] mt-0.5" style={{ color: "var(--text-muted)" }}>
+                已過 {elapsedDays} / 共 {totalDays} 天
+              </p>
+            </div>
+            <div className="flex-1 text-right">
+              <p className="text-[10px] mb-0.5" style={{ color: "var(--text-muted)" }}>📈 預估總花費</p>
+              <p className="text-lg font-bold" style={{ color: "#6366f1" }}>
+                NT${Math.round(projectedTotal).toLocaleString()}
+              </p>
+              <p className="text-[9px] mt-0.5" style={{ color: "var(--text-muted)" }}>
+                依目前速率推算
+              </p>
+            </div>
+          </motion.div>
+        );
+      })()}
 
       {/* ── 本月交易明細 ── */}
       <div className="mb-4">
