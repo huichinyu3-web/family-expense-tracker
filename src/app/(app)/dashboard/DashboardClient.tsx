@@ -64,28 +64,35 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
   const [fxUpdatedAt, setFxUpdatedAt] = useState<string | null>(null);
 
   useEffect(() => {
-    // 動態找出所有交易裡出現的非-TWD 幣別（不限定清單，支援 SGD、THB 等任意幣別）
+    // 動態找出所有交易裡出現的非-TWD 幣別
     const usedForeign = Array.from(
       new Set(transactions.map((t: any) => t.currency).filter((c: string) => c && c !== "TWD"))
     ) as string[];
     if (usedForeign.length === 0) return;
-    fetch(`https://api.frankfurter.app/latest?from=TWD&to=${usedForeign.join(",")}`, { signal: AbortSignal.timeout(8000) })
-      .then(r => r.json())
+
+    // frankfurter.app 不支援 TWD 作為基準幣（from=TWD 會 404）
+    // 改用 from=USD，同時查詢所有外幣和 TWD，再做交叉換算：
+    // 1 外幣 = (USD→TWD rate) / (USD→外幣 rate) TWD
+    const targets = [...usedForeign, "TWD"].join(",");
+    fetch(`https://api.frankfurter.app/latest?from=USD&to=${targets}`, { signal: AbortSignal.timeout(8000) })
+      .then(r => { if (!r.ok) throw new Error("API error"); return r.json(); })
       .then(data => {
+        const usdToTWD = data.rates?.["TWD"];
+        if (!usdToTWD) return; // 防呆
         const rates: Record<string, number> = {};
         usedForeign.forEach((c: string) => {
-          if (data.rates?.[c]) {
-            rates[c] = 1 / data.rates[c]; // 1 外幣 = ? TWD
+          const usdToC = data.rates?.[c];
+          if (usdToC) {
+            rates[c] = usdToTWD / usdToC; // 1 外幣 = ? TWD
           } else {
-            // frankfurter 不支援此幣別時，嘗試個別查詢（少數特殊幣別）
-            console.warn(`[FX] 匯率查詢失敗：${c}，此幣別將以 1:1 計算`);
+            console.warn(`[FX] 不支援幣別：${c}，此幣別將以 1:1 計算`);
           }
         });
         setFxRates(rates);
         const now2 = new Date();
         setFxUpdatedAt(`${now2.getMonth()+1}/${now2.getDate()} ${now2.getHours()}:${now2.getMinutes().toString().padStart(2,'0')}`);
       })
-      .catch(() => {}); // API 失敗就保持原來 1:1 的計算（不影響 TWD 幣別的帳簿）
+      .catch(() => {}); // API 失敗靜默處理（TWD 帳簿不受影響）
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -182,17 +182,18 @@ export default function SettlementModal({ walletId, walletName, familyId, curren
     setIsFetchingRates(true);
     try {
       const targets = foreignCurrencies.join(",");
-      // frankfurter 以 EUR 為基準，我們需要從 TWD 換算
-      // 先取得 EUR→TWD 和 EUR→各外幣，再算出 1外幣=?TWD
-      const res = await fetch(`https://api.frankfurter.app/latest?from=TWD&to=${targets}`, { signal: AbortSignal.timeout(5000) });
+      // frankfurter.app 不支援 TWD 為基準幣（from=TWD 會 404）
+      // 改用 from=USD，同時查 TWD 和各外幣，交叉換算 1外幣=?TWD
+      const res = await fetch(`https://api.frankfurter.app/latest?from=USD&to=${targets},TWD`, { signal: AbortSignal.timeout(8000) });
       if (!res.ok) throw new Error("API error");
       const data = await res.json();
-      // data.rates = { USD: X, JPY: Y, ... }，意思是 1 TWD = X 外幣
-      // 我們要的是 1 外幣 = ? TWD，所以取倒數
+      const usdToTWD = data.rates?.["TWD"];
+      if (!usdToTWD) throw new Error("TWD rate missing");
       const liveRates: Record<string, string> = {};
       foreignCurrencies.forEach(c => {
-        if (data.rates?.[c]) {
-          liveRates[c] = (1 / data.rates[c]).toFixed(4);
+        const usdToC = data.rates?.[c];
+        if (usdToC) {
+          liveRates[c] = (usdToTWD / usdToC).toFixed(4); // 1 外幣 = ? TWD
         } else {
           liveRates[c] = FALLBACK_RATES[c] || "1";
         }
