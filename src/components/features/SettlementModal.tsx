@@ -164,9 +164,54 @@ export default function SettlementModal({ walletId, walletName, familyId, curren
   const [currencies, setCurrencies] = useState<string[]>([]);
   const [exchangeRates, setExchangeRates] = useState<Record<string, string>>({}); // string 方便輸入框編輯
   const [ratesConfirmed, setRatesConfirmed] = useState(false);
+  const [ratesUpdatedAt, setRatesUpdatedAt] = useState<string | null>(null);
+  const [isFetchingRates, setIsFetchingRates] = useState(false);
 
   // 是否包含非 TWD 幣別
   const hasMultiCurrency = currencies.some(c => c !== "TWD");
+
+  // 靜態 fallback 匯率（當 API 無法連線時使用）
+  const FALLBACK_RATES: Record<string, string> = {
+    JPY: "0.22", USD: "32", EUR: "35", HKD: "4.1",
+    CNY: "4.4", KRW: "0.024", GBP: "40"
+  };
+
+  // 從 frankfurter.app 拉取即時匯率
+  const fetchLiveRates = useCallback(async (foreignCurrencies: string[]) => {
+    if (foreignCurrencies.length === 0) return;
+    setIsFetchingRates(true);
+    try {
+      const targets = foreignCurrencies.join(",");
+      // frankfurter 以 EUR 為基準，我們需要從 TWD 換算
+      // 先取得 EUR→TWD 和 EUR→各外幣，再算出 1外幣=?TWD
+      const res = await fetch(`https://api.frankfurter.app/latest?from=TWD&to=${targets}`, { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) throw new Error("API error");
+      const data = await res.json();
+      // data.rates = { USD: X, JPY: Y, ... }，意思是 1 TWD = X 外幣
+      // 我們要的是 1 外幣 = ? TWD，所以取倒數
+      const liveRates: Record<string, string> = {};
+      foreignCurrencies.forEach(c => {
+        if (data.rates?.[c]) {
+          liveRates[c] = (1 / data.rates[c]).toFixed(4);
+        } else {
+          liveRates[c] = FALLBACK_RATES[c] || "1";
+        }
+      });
+      setExchangeRates(prev => ({ ...prev, ...liveRates }));
+      const now = new Date();
+      setRatesUpdatedAt(`${now.getMonth() + 1}/${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`);
+    } catch {
+      // 靜默失敗，使用 fallback
+      setExchangeRates(prev => {
+        const next = { ...prev };
+        foreignCurrencies.forEach(c => { if (!next[c]) next[c] = FALLBACK_RATES[c] || "1"; });
+        return next;
+      });
+    } finally {
+      setIsFetchingRates(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const loadSettlement = useCallback(async (rates?: Record<string, string>) => {
     setIsLoading(true);
@@ -183,23 +228,18 @@ export default function SettlementModal({ walletId, walletName, familyId, curren
       setDebts(result.debts);
       if (result.currencies.length > 0) {
         setCurrencies(result.currencies);
-        setExchangeRates(prev => {
-          const next = { ...prev };
-          result.currencies.forEach(c => {
-            if (c !== "TWD" && !next[c]) {
-              const defaults: Record<string, string> = { JPY: "0.22", USD: "32", EUR: "35", HKD: "4.1", CNY: "4.4", KRW: "0.024", GBP: "40" };
-              next[c] = defaults[c] || "1";
-            }
-          });
-          return next;
-        });
+        const foreign = result.currencies.filter(c => c !== "TWD");
+        if (foreign.length > 0 && !rates) {
+          // 只在首次載入時拉即時匯率（使用者手動確認後不再重拉）
+          await fetchLiveRates(foreign);
+        }
       }
     } catch (e: any) {
       setError(e.message || "載入失敗，請稍後再試");
     } finally {
       setIsLoading(false);
     }
-  }, [walletId]);
+  }, [walletId, fetchLiveRates]);
 
   // 一進來就自動載入結算資料
   useEffect(() => { loadSettlement(); }, [loadSettlement]);
@@ -272,9 +312,19 @@ export default function SettlementModal({ walletId, walletName, familyId, curren
         {!isLoading && hasMultiCurrency && !ratesConfirmed && (
           <div className="px-5 pb-4">
             <div className="p-4 rounded-2xl" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)" }}>
-              <p className="text-sm font-bold mb-1" style={{ color: "#d97706" }}>⚠️ 偵測到多幣別交易</p>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-sm font-bold" style={{ color: "#d97706" }}>⚠️ 偵測到多幣別交易</p>
+                {isFetchingRates ? (
+                  <span className="text-[10px] flex items-center gap-1" style={{ color: "#6366f1" }}>
+                    <span className="inline-block w-2.5 h-2.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                    拉取即時匯率中...
+                  </span>
+                ) : ratesUpdatedAt ? (
+                  <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>🌐 即時匯率 · {ratesUpdatedAt}</span>
+                ) : null}
+              </div>
               <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>
-                此帳簿包含非台幣交易，請輸入各幣別的匯率（1 外幣 = ? 台幣）：
+                此帳簿包含非台幣交易，請確認各幣別匯率（1 外幣 = ? 台幣）：
               </p>
               <div className="flex flex-col gap-2 mb-3">
                 {currencies.filter(c => c !== "TWD").map(c => (
@@ -283,24 +333,36 @@ export default function SettlementModal({ walletId, walletName, familyId, curren
                     <span className="text-xs" style={{ color: "var(--text-muted)" }}>1 {c} =</span>
                     <input
                       type="number"
-                      step="0.01"
+                      step="0.0001"
                       value={exchangeRates[c] || ""}
                       onChange={e => setExchangeRates(r => ({ ...r, [c]: e.target.value }))}
                       className="flex-1 px-3 py-1.5 rounded-lg text-sm font-bold outline-none text-center"
                       style={{ background: "var(--bg-surface)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
-                      placeholder="匯率"
+                      placeholder={isFetchingRates ? "載入中..." : "匯率"}
+                      disabled={isFetchingRates}
                     />
                     <span className="text-xs font-bold" style={{ color: "var(--text-muted)" }}>TWD</span>
                   </div>
                 ))}
               </div>
-              <button
-                onClick={() => { setRatesConfirmed(true); loadSettlement(exchangeRates); }}
-                className="w-full py-2.5 rounded-xl text-sm font-bold transition-all active:scale-95"
-                style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1", border: "1px solid rgba(99,102,241,0.3)" }}
-              >
-                確認匯率，開始結算
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => fetchLiveRates(currencies.filter(c => c !== "TWD"))}
+                  disabled={isFetchingRates}
+                  className="py-2.5 px-3 rounded-xl text-sm font-bold transition-all active:scale-95 flex-shrink-0"
+                  style={{ background: "rgba(16,185,129,0.1)", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)", opacity: isFetchingRates ? 0.6 : 1 }}
+                >
+                  🔄 重新拉取
+                </button>
+                <button
+                  onClick={() => { setRatesConfirmed(true); loadSettlement(exchangeRates); }}
+                  disabled={isFetchingRates}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all active:scale-95"
+                  style={{ background: "rgba(99,102,241,0.1)", color: "#6366f1", border: "1px solid rgba(99,102,241,0.3)", opacity: isFetchingRates ? 0.6 : 1 }}
+                >
+                  確認匯率，開始結算
+                </button>
+              </div>
             </div>
           </div>
         )}
