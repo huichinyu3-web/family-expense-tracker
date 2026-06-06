@@ -190,6 +190,7 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
           setRecurringEndDate("");
           setNote(editData.note || "");
           setPaidByUserId(editData.paidByUserId || null);
+          setTxCurrency(editData.currency || null);
         } else {
           const lastWalletId = localStorage.getItem("lastSelectedWallet");
           if (lastWalletId && lastWalletId !== "ALL" && w.some(wi => wi.id === lastWalletId)) {
