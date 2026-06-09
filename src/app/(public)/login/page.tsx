@@ -12,14 +12,14 @@ function LoginClient() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
-  // 如果已登入，3 秒後自動跳往 callbackUrl 或 Dashboard
+  // 如果已登入，3 秒後自動跳往 callbackUrl 或 Dashboard（硬性重整，清除 Router Cache）
   useEffect(() => {
     if (status !== "authenticated") return;
     const timer = setTimeout(() => {
-      router.replace(callbackUrl);
+      window.location.href = callbackUrl; // 強制完整重新載入，避免 Router Cache 殘留上一個帳號的資料
     }, 2500);
-    return () => clearTimeout(timer); // 若使用者提前點「繼續使用」則取消計時器
-  }, [status, router, callbackUrl]);
+    return () => clearTimeout(timer);
+  }, [status, callbackUrl]);
 
   // 載入中（避免閃爍）
   if (status === "loading") {
@@ -79,7 +79,7 @@ function LoginClient() {
             <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{session.user.email}</p>
           </div>
 
-          <motion.button whileTap={{ scale: 0.97 }} onClick={() => router.replace(callbackUrl)}
+          <motion.button whileTap={{ scale: 0.97 }} onClick={() => { window.location.href = callbackUrl; }}
             className="w-full py-3.5 rounded-xl font-semibold text-sm text-white"
             style={{ background: "var(--gradient-primary)" }}>
             繼續使用
