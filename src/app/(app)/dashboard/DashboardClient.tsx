@@ -392,7 +392,20 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
   };
 
   return (
-    <div className="px-4 pt-6 pb-2 max-w-lg mx-auto">
+    <div 
+      className="px-4 pt-6 pb-2 max-w-lg mx-auto relative"
+      style={{
+        "--theme-primary": isActivity ? "#14b8a6" : "#6366f1",
+        "--theme-primary-rgb": isActivity ? "20,184,166" : "99,102,241"
+      } as React.CSSProperties}
+    >
+      {/* 活動專屬：動態光暈背景 */}
+      {isActivity && (
+        <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
+          <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-teal-500/10 blur-[100px] animate-pulse-slow" />
+          <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full bg-amber-500/10 blur-[100px] animate-pulse-slow" style={{ animationDelay: '2s' }} />
+        </div>
+      )}
 
       {/* ── 頂部：標題列與視角切換 ── */}
       <div className="relative flex items-center justify-between mb-6 h-12">
