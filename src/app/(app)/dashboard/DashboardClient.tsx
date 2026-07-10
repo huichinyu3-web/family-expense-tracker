@@ -129,6 +129,8 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
   const [typeFilter, setTypeFilter] = useState("全部");
   const [search, setSearch] = useState("");
   const [showAllTx, setShowAllTx] = useState(false);
+  // 活動模式：預設為「總計」（不限月份）
+  const [showAllPeriod, setShowAllPeriod] = useState(true);
 
   // 動態提取選項
   const MEMBERS = Array.from(new Set(transactions.map((t:any) => t.user?.name).filter(Boolean))) as string[];
@@ -176,8 +178,8 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
   const filteredTx = useMemo(() => {
     return transactions.filter((tx: any) => {
       const txDateObj = new Date(tx.date);
-      // 月份過濾
-      const isSameMonth = (startDate || endDate) ? true : (txDateObj.getMonth() === monthIdx && txDateObj.getFullYear() === year);
+      // 月份過濾：活動總計模式不限月份
+      const isSameMonth = (showAllPeriod && isActivity) ? true : (startDate || endDate) ? true : (txDateObj.getMonth() === monthIdx && txDateObj.getFullYear() === year);
       
       const matchWallet = selectedWallets.length === 0 || selectedWallets.includes(tx.walletId);
       // 按模式排除：帳務模式排除期間帳簿，活動模式排除一般帳簿
@@ -212,7 +214,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
 
       return isSameMonth && matchWallet && !isExcludedPeriod && matchMember && matchType && matchCat && matchMerch && matchMin && matchMax && matchStart && matchEnd && matchSearch;
     });
-  }, [transactions, monthIdx, year, selectedWallets, selectedMembers, typeFilter, categoryFilter, merchantFilter, minAmount, maxAmount, startDate, endDate, search, periodWalletIds, isActivity]);
+  }, [transactions, monthIdx, year, selectedWallets, selectedMembers, typeFilter, categoryFilter, merchantFilter, minAmount, maxAmount, startDate, endDate, search, periodWalletIds, isActivity, showAllPeriod]);
 
   // 若只選了一個帳簿，才顯示拆帳/詳細餘額等資訊（須先定義，後面統計用到）
   const selectedWallet = selectedWallets.length === 1 ? wallets.find((w: any) => w.id === selectedWallets[0]) : null;
@@ -395,7 +397,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
         
         {/* 中間：置中標題 */}
         <div className="absolute left-1/2 -translate-x-1/2 text-base font-bold" style={{ color: "var(--text-primary)" }}>
-          {isActivity ? "活動" : "帳簿總覽"}
+          {isActivity ? "活動總覽" : "帳簿總覽"}
         </div>
         
         {/* 右側：過濾按鈕 */}
@@ -577,19 +579,34 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
       )}
       </AnimatePresence>
 
-      {/* ── 月份選擇器 ── */}
-      <div className="flex items-center justify-center gap-4 mb-4">
-        <button onClick={prevMonth}
-          className="w-7 h-7 rounded-full flex items-center justify-center"
-          style={{ background: "var(--bg-card)" }}>
+      {/* ── 月份選擇器（活動模式含總計切換） ── */}
+      <div className="flex items-center justify-center gap-2 mb-4">
+        {/* 活動模式：加入「總計」按鈕 */}
+        {isActivity && (
+          <button
+            onClick={() => setShowAllPeriod(true)}
+            className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+            style={{
+              background: showAllPeriod ? "rgba(99,102,241,0.2)" : "var(--bg-card)",
+              color: showAllPeriod ? "#6366f1" : "var(--text-muted)",
+              border: showAllPeriod ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
+            }}>
+            總計
+          </button>
+        )}
+        <button onClick={() => { setShowAllPeriod(false); prevMonth(); }}
+          className="w-7 h-7 rounded-full flex items-center justify-center transition-opacity"
+          style={{ background: "var(--bg-card)", opacity: (showAllPeriod && isActivity) ? 0.35 : 1 }}>
           <ChevronLeft size={14} style={{ color: "var(--text-secondary)" }} />
         </button>
-        <span className="text-sm font-semibold w-24 text-center whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
+        <span
+          className="text-sm font-semibold w-24 text-center whitespace-nowrap"
+          style={{ color: (showAllPeriod && isActivity) ? "var(--text-muted)" : "var(--text-primary)" }}>
           {year} 年 {MONTHS[monthIdx]}
         </span>
-        <button onClick={nextMonth}
-          className="w-7 h-7 rounded-full flex items-center justify-center"
-          style={{ background: "var(--bg-card)" }}>
+        <button onClick={() => { setShowAllPeriod(false); nextMonth(); }}
+          className="w-7 h-7 rounded-full flex items-center justify-center transition-opacity"
+          style={{ background: "var(--bg-card)", opacity: (showAllPeriod && isActivity) ? 0.35 : 1 }}>
           <ChevronRight size={14} style={{ color: "var(--text-secondary)" }} />
         </button>
       </div>
@@ -759,7 +776,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
       {categoryExpenses.length > 0 && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
           className="mb-6 glass-card p-5">
-          <p className="text-xs font-bold mb-3" style={{ color: "var(--text-muted)" }}>📊 本月支出佔比 Top 3</p>
+          <p className="text-xs font-bold mb-3" style={{ color: "var(--text-muted)" }}>📊 {isActivity ? "支出" : "本月支出"}占比 Top 3</p>
           <div className="flex flex-col gap-3">
             {categoryExpenses.map((cat, idx) => (
               <div key={idx} className="flex flex-col gap-1.5">
@@ -837,7 +854,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
               style={{ background: "rgba(244,63,94,0.15)" }}>
               <TrendingDown size={14} color="#f43f5e" />
             </div>
-            <span className="text-xs" style={{ color: "var(--text-muted)" }}>本月支出</span>
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>{isActivity ? "支出" : "本月支出"}</span>
           </div>
           <CountUp
             end={totalExpense}
@@ -856,7 +873,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
               style={{ background: "rgba(16,185,129,0.15)" }}>
               <TrendingUp size={14} color="#10b981" />
             </div>
-            <span className="text-xs" style={{ color: "var(--text-muted)" }}>本月收入</span>
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>{isActivity ? "收入" : "本月收入"}</span>
           </div>
           <CountUp
             end={totalIncome}
