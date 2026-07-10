@@ -746,11 +746,11 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
         <div className="mt-4">
           <div className="flex justify-between items-end text-xs mb-2" style={{ color: "var(--text-muted)" }}>
             <span className="flex flex-col gap-0.5 text-left">
-              <span>預估總支出 <span className="font-semibold text-[var(--text-primary)]">NT${Math.round(totalExpense).toLocaleString()}</span></span>
+              <span>{isActivity ? "總支出" : "預估總支出"} <span className="font-semibold text-[var(--text-primary)]">NT${Math.round(totalExpense).toLocaleString()}</span></span>
               <span className="text-[10px] opacity-80">已付 NT${Math.round(pastExpense).toLocaleString()}{futureExpense > 0 ? ` / 待付 NT$${Math.round(futureExpense).toLocaleString()}` : ""}</span>
             </span>
             <span className="text-right flex flex-col gap-0.5">
-              <span>本月預算 <span className="font-semibold text-[var(--text-primary)]">{effectiveBudget != null ? `NT$${effectiveBudget.toLocaleString()}` : "未設定"}</span></span>
+              <span>{isActivity ? "活動預算" : "本月預算"} <span className="font-semibold text-[var(--text-primary)]">{effectiveBudget != null ? `NT$${Math.round(effectiveBudget).toLocaleString()}` : "未設定"}</span></span>
               <span className="text-[10px] opacity-80">已收 NT${Math.round(pastIncome).toLocaleString()}{futureIncome > 0 ? ` / 待收 NT$${Math.round(futureIncome).toLocaleString()}` : ""}</span>
             </span>
           </div>
