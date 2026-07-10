@@ -11,7 +11,9 @@
   --bg-overlay: rgba(255, 255, 255, 0.85);
 
   /* 品牌漸層 */
-  --gradient-primary: linear-gradient(135deg, #6366f1, #a855f7);
+  --theme-primary: #6366f1;
+  --theme-primary-rgb: 99, 102, 241;
+  --gradient-primary: linear-gradient(135deg, var(--theme-primary), #a855f7);
   --gradient-expense: linear-gradient(135deg, #f43f5e, #f97316);
   --gradient-income:  linear-gradient(135deg, #10b981, #06b6d4);
 
@@ -25,7 +27,11 @@
   --border-hover:   rgba(0, 0, 0, 0.12);
 
   /* 陰影 */
-  --shadow-glow: 0 10px 40px rgba(99, 102, 241, 0.12);
+  --shadow-glow: 0 10px 40px rgba(var(--theme-primary-rgb), 0.12);
+}
+
+@theme {
+  --animate-pulse-slow: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 /* ── 全域基礎樣式 ────────────────────────────────── */
