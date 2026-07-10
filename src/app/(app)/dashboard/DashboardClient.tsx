@@ -11,7 +11,6 @@ import { AnimatePresence } from "framer-motion";
 import QuickAddDrawer from "@/components/features/QuickAddDrawer";
 import SettlementModal from "@/components/features/SettlementModal";
 
-const CHART_COLORS = ["#f43f5e", "#10b981"];
 const MONTHS = ["一月","二月","三月","四月","五月","六月","七月","八月","九月","十月","十一月","十二月"];
 const TYPES    = ["全部", "支出", "收入"];
 
@@ -636,7 +635,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
       {/* ── 帳簿過濾選擇器（多選） ── */}
       <div className="mb-5 glass-card p-3 rounded-2xl border border-[var(--border)]">
         <div className="flex items-center gap-1.5 mb-2.5 px-1">
-          <Wallet size={16} className="text-[var(--theme-primary)]" />
+          <Wallet size={16} className="text-theme" />
           <span className="text-sm font-bold text-[var(--text-primary)]">{isActivity ? "活動帳簿" : "帳務帳簿"}</span>
           <span className="text-xs text-[var(--text-muted)] ml-auto">可多選</span>
         </div>
@@ -727,7 +726,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
                 strokeWidth={0}
               >
                 {CHART_DATA.map((_, i) => (
-                  <Cell key={i} fill={CHART_COLORS[i]} />
+                  <Cell key={i} fill={i === 0 ? (isActivity ? "#f59e0b" : "#f43f5e") : (isActivity ? "#14b8a6" : "#10b981")} />
                 ))}
               </Pie>
             </PieChart>
@@ -1138,7 +1137,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
                       <button
                         key={i}
                         onClick={() => setCurrentSlide(i)}
-                        className={`h-1.5 rounded-full transition-all duration-300 ${i === currentSlide ? "w-4 bg-[var(--theme-primary)]" : "w-1.5 bg-[var(--border)]"}`}
+                        className={`h-1.5 rounded-full transition-all duration-300 ${i === currentSlide ? "w-4 bg-theme" : "w-1.5 bg-[var(--border)]"}`}
                       />
                     ))}
                   </div>
@@ -1165,7 +1164,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
                       {currentSlide < onboardingSlides.length - 1 ? (
                         <button
                           onClick={() => setCurrentSlide(prev => prev + 1)}
-                          className="px-5 py-2 text-xs font-bold rounded-xl bg-[var(--theme-primary)] text-white hover:opacity-90 transition-all shadow-[0_4px_12px_rgba(var(--theme-primary-rgb),0.3)]"
+                          className="px-5 py-2 text-xs font-bold rounded-xl bg-theme text-white hover:opacity-90 transition-all shadow-[0_4px_12px_rgba(var(--theme-primary-rgb),0.3)]"
                         >
                           下一步
                         </button>

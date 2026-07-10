@@ -34,6 +34,13 @@
   --animate-pulse-slow: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+/* ── 主題色工具類別 (支援動態切換) ──────────────────── */
+.text-theme { color: var(--theme-primary); }
+.bg-theme { background-color: var(--theme-primary); }
+.border-theme { border-color: var(--theme-primary); }
+.fill-theme { fill: var(--theme-primary); }
+.stroke-theme { stroke: var(--theme-primary); }
+
 /* ── 全域基礎樣式 ────────────────────────────────── */
 * {
   box-sizing: border-box;
