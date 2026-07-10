@@ -38,6 +38,8 @@ function Avatar({ initial, colorId }: { initial: string; colorId: string }) {
 // @ts-ignore
 export default function DashboardClient({ transactions, wallets, currentUserId, userName, familyName, familyMembersCount, currentUserRole, mode = "regular" }) {
   const isActivity = mode === "activity";
+  const themeColor = isActivity ? "#14b8a6" : "#6366f1";
+  const themeColorRgb = isActivity ? "20, 184, 166" : "99, 102, 241";
   const now = new Date();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -428,8 +430,8 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
             onClick={() => setShowFilter(!showFilter)}
             className="px-2.5 py-1.5 rounded-lg flex items-center justify-center transition-all"
             style={{
-              background: showFilter ? "rgba(var(--theme-primary-rgb),0.15)" : "var(--bg-card)",
-              color: showFilter ? "var(--theme-primary)" : "var(--text-muted)",
+              background: showFilter ? `rgba(${themeColorRgb},0.15)` : "var(--bg-card)",
+              color: showFilter ? themeColor : "var(--text-muted)",
               border: showFilter ? "1px solid rgba(var(--theme-primary-rgb),0.4)" : "1px solid var(--border)",
             }}
           >
@@ -491,8 +493,8 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
                 }}
                   className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
                   style={{
-                    background: isSelected ? "rgba(var(--theme-primary-rgb),0.2)" : "var(--bg-card)",
-                    color: isSelected ? "var(--theme-primary)" : "var(--text-secondary)",
+                    background: isSelected ? `rgba(${themeColorRgb},0.2)` : "var(--bg-card)",
+                    color: isSelected ? themeColor : "var(--text-secondary)",
                     border: isSelected ? "1px solid rgba(var(--theme-primary-rgb),0.4)" : "1px solid var(--border)",
                   }}>
                   {m}
@@ -508,8 +510,8 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
               <button key={c} onClick={() => setCategoryFilter(c)}
                 className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
                 style={{
-                  background: categoryFilter === c ? "rgba(var(--theme-primary-rgb),0.2)" : "var(--bg-card)",
-                  color: categoryFilter === c ? "var(--theme-primary)" : "var(--text-secondary)",
+                  background: categoryFilter === c ? `rgba(${themeColorRgb},0.2)` : "var(--bg-card)",
+                  color: categoryFilter === c ? themeColor : "var(--text-secondary)",
                   border: categoryFilter === c ? "1px solid rgba(var(--theme-primary-rgb),0.4)" : "1px solid var(--border)",
                 }}>
                 {c}
@@ -524,8 +526,8 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
               <button key={m} onClick={() => setMerchantFilter(m)}
                 className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
                 style={{
-                  background: merchantFilter === m ? "rgba(var(--theme-primary-rgb),0.2)" : "var(--bg-card)",
-                  color: merchantFilter === m ? "var(--theme-primary)" : "var(--text-secondary)",
+                  background: merchantFilter === m ? `rgba(${themeColorRgb},0.2)` : "var(--bg-card)",
+                  color: merchantFilter === m ? themeColor : "var(--text-secondary)",
                   border: merchantFilter === m ? "1px solid rgba(var(--theme-primary-rgb),0.4)" : "1px solid var(--border)",
                 }}>
                 {m}
@@ -542,8 +544,8 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
                   <button key={t} onClick={() => setTypeFilter(t)}
                     className="flex-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
                     style={{
-                      background: typeFilter === t ? "rgba(var(--theme-primary-rgb),0.2)" : "var(--bg-card)",
-                      color: typeFilter === t ? "var(--theme-primary)" : "var(--text-secondary)",
+                      background: typeFilter === t ? `rgba(${themeColorRgb},0.2)` : "var(--bg-card)",
+                      color: typeFilter === t ? themeColor : "var(--text-secondary)",
                       border: typeFilter === t ? "1px solid rgba(var(--theme-primary-rgb),0.4)" : "1px solid var(--border)",
                     }}>
                     {t}
@@ -608,8 +610,8 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
             onClick={() => setShowAllPeriod(true)}
             className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
             style={{
-              background: showAllPeriod ? "rgba(var(--theme-primary-rgb),0.2)" : "var(--bg-card)",
-              color: showAllPeriod ? "var(--theme-primary)" : "var(--text-muted)",
+              background: showAllPeriod ? `rgba(${themeColorRgb},0.2)` : "var(--bg-card)",
+              color: showAllPeriod ? themeColor : "var(--text-muted)",
               border: showAllPeriod ? "1px solid rgba(var(--theme-primary-rgb),0.4)" : "1px solid var(--border)",
             }}>
             總計
@@ -635,7 +637,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
       {/* ── 帳簿過濾選擇器（多選） ── */}
       <div className="mb-5 glass-card p-3 rounded-2xl border border-[var(--border)]">
         <div className="flex items-center gap-1.5 mb-2.5 px-1">
-          <Wallet size={16} className="text-theme" />
+          <Wallet size={16} style={{ color: themeColor }} />
           <span className="text-sm font-bold text-[var(--text-primary)]">{isActivity ? "活動帳簿" : "帳務帳簿"}</span>
           <span className="text-xs text-[var(--text-muted)] ml-auto">可多選</span>
         </div>
@@ -677,7 +679,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             className="mb-4 px-4 py-3 rounded-2xl flex items-center gap-3"
-            style={{ background: isEnded ? "rgba(var(--theme-primary-rgb),0.06)" : "rgba(16,185,129,0.08)", border: `1px solid ${isEnded ? "rgba(var(--theme-primary-rgb),0.2)" : "rgba(16,185,129,0.25)"}` }}
+            style={{ background: isEnded ? `rgba(${themeColorRgb},0.06)` : "rgba(16,185,129,0.08)", border: `1px solid ${isEnded ? `rgba(${themeColorRgb},0.2)` : "rgba(16,185,129,0.25)"}` }}
           >
             <span className="text-xl">{isEnded ? "🏁" : isActive ? "✈️" : "📅"}</span>
             <div className="flex-1 min-w-0">
@@ -692,8 +694,8 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
             <span
               className="text-[10px] font-bold px-2 py-1 rounded-lg flex-shrink-0"
               style={{
-                background: isEnded ? "rgba(var(--theme-primary-rgb),0.12)" : isActive ? "rgba(16,185,129,0.15)" : "rgba(245,158,11,0.15)",
-                color: isEnded ? "var(--theme-primary)" : isActive ? "#10b981" : "#d97706"
+                background: isEnded ? `rgba(${themeColorRgb},0.12)` : isActive ? "rgba(16,185,129,0.15)" : "rgba(245,158,11,0.15)",
+                color: isEnded ? themeColor : isActive ? "#10b981" : "#d97706"
               }}
             >
               {isEnded ? "已結束" : isActive ? `第 ${elapsed} 天` : "未開始"}
@@ -856,8 +858,8 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
             onClick={() => setShowSettlement(true)}
             className="mt-3 w-full py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95"
             style={{
-              background: "rgba(var(--theme-primary-rgb),0.1)",
-              color: "var(--theme-primary)",
+              background: `rgba(${themeColorRgb},0.1)`,
+              color: themeColor,
               border: "1px solid rgba(var(--theme-primary-rgb),0.25)",
             }}
           >
@@ -933,7 +935,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
             </div>
             <div className="flex-1 text-right">
               <p className="text-[10px] mb-0.5" style={{ color: "var(--text-muted)" }}>📈 預估總花費</p>
-              <p className="text-lg font-bold" style={{ color: "var(--theme-primary)" }}>
+              <p className="text-lg font-bold" style={{ color: themeColor }}>
                 NT${Math.round(projectedTotal).toLocaleString()}
               </p>
               <p className="text-[9px] mt-0.5" style={{ color: "var(--text-muted)" }}>
@@ -952,7 +954,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
             <button 
               onClick={() => setShowAllTx(!showAllTx)} 
               className="text-xs" 
-              style={{ color: "var(--theme-primary)" }}
+              style={{ color: themeColor }}
             >
               {showAllTx ? "收起" : "查看全部"}
             </button>
@@ -1092,7 +1094,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed inset-x-4 top-1/2 -translate-y-1/2 md:max-w-md md:mx-auto z-50 overflow-hidden bg-[var(--bg-surface)] border border-[var(--border)] rounded-3xl shadow-[0_0_50px_0_rgba(var(--theme-primary-rgb),0.25)] flex flex-col"
+              className="fixed inset-x-4 top-1/2 -translate-y-1/2 md:max-w-md md:mx-auto z-50 overflow-hidden bg-[var(--bg-surface)] border border-[var(--border)] rounded-3xl  flex flex-col"
             >
               {/* 頂部裝飾背景 */}
               <div className={`h-28 bg-gradient-to-tr ${onboardingSlides[currentSlide].color} relative flex items-center justify-center transition-all duration-500`}>
@@ -1164,7 +1166,8 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
                       {currentSlide < onboardingSlides.length - 1 ? (
                         <button
                           onClick={() => setCurrentSlide(prev => prev + 1)}
-                          className="px-5 py-2 text-xs font-bold rounded-xl bg-theme text-white hover:opacity-90 transition-all shadow-[0_4px_12px_rgba(var(--theme-primary-rgb),0.3)]"
+                          className="px-5 py-2 text-xs font-bold rounded-xl text-white hover:opacity-90 transition-all" 
+                        style={{ backgroundColor: themeColor, boxShadow: `0 4px 12px rgba(${themeColorRgb}, 0.3)` }}
                         >
                           下一步
                         </button>
