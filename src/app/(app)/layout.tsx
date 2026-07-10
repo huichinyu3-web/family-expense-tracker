@@ -18,11 +18,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const isActivity = pathname?.includes("/transactions");
-  const themeColor = isActivity ? "#14b8a6" : "#6366f1";
-  const themeColorRgb = isActivity ? "20, 184, 166" : "99, 102, 241";
+  const isSettings = pathname?.includes("/settings");
+  
+  let themeClass = '';
+  let themeColor = '#6366f1';
+  let themeColorRgb = '99, 102, 241';
+
+  if (isActivity) {
+    themeClass = 'theme-activity';
+    themeColor = '#14b8a6';
+    themeColorRgb = '20, 184, 166';
+  } else if (isSettings) {
+    themeClass = 'theme-settings';
+    themeColor = '#f59e0b';
+    themeColorRgb = '245, 158, 11';
+  }
 
   return (
-    <div className={`flex flex-col min-h-screen ${isActivity ? 'theme-activity' : ''}`} style={{ 
+    <div className={`flex flex-col min-h-screen ${themeClass}`} style={{ 
       background: "var(--bg-base)",
       "--theme-primary": themeColor,
       "--theme-primary-rgb": themeColorRgb 
@@ -71,7 +84,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             onClick={() => setDrawerOpen(true)}
             className="w-14 h-14 rounded-full flex items-center justify-center shadow-lg"
             style={{
-              background: isActivity ? "linear-gradient(135deg, #14b8a6, #34d399)" : "var(--gradient-primary)",
+              background: isActivity ? "linear-gradient(135deg, #14b8a6, #34d399)" : 
+                          isSettings ? "linear-gradient(135deg, #f59e0b, #fbbf24)" : 
+                          "var(--gradient-primary)",
               boxShadow: `0 10px 40px rgba(${themeColorRgb}, 0.3), 0 4px 20px rgba(0,0,0,0.4)`,
             }}
           >

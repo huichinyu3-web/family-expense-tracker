@@ -109,3 +109,23 @@ body {
   --border: rgba(255, 255, 255, 0.15);
   --border-hover: rgba(255, 255, 255, 0.25);
 }
+
+/* 設定模式專屬 Tailwind 類別覆寫 (香檳金) */
+.theme-settings .bg-indigo-500 { background-color: #f59e0b !important; }
+.theme-settings .text-indigo-500 { color: #f59e0b !important; }
+.theme-settings .text-indigo-400 { color: #fbbf24 !important; }
+.theme-settings .shadow-indigo-500\/30 { --tw-shadow-color: rgba(245, 158, 11, 0.3) !important; }
+.theme-settings .bg-indigo-500\/20 { background-color: rgba(245, 158, 11, 0.2) !important; }
+
+/* 設定模式專屬：深色背景隔離 (Settings Mode) - 曜石黑與香檳金 */
+.theme-settings {
+  --bg-base: #0a0a0a; /* Neutral 950 - 曜石黑 */
+  --bg-surface: #171717; /* Neutral 900 */
+  --bg-card: #171717;
+  --bg-overlay: rgba(10, 10, 10, 0.85);
+  --text-primary: #fafafa;
+  --text-secondary: #d4d4d4;
+  --text-muted: #a3a3a3;
+  --border: rgba(255, 255, 255, 0.3); /* 明顯的白色邊框 */
+  --border-hover: rgba(255, 255, 255, 0.5);
+}
