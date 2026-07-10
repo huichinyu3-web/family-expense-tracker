@@ -8,9 +8,9 @@ import { useState } from "react";
 import QuickAddDrawer from "@/components/features/QuickAddDrawer";
 
 const navItems = [
-  { href: "/dashboard", icon: Wallet, label: "帳�?" },
-  { href: "/transactions", icon: CalendarDays, label: "活�?" },
-  { href: "/settings", icon: Settings, label: "設�?" },
+  { href: "/dashboard", icon: Wallet, label: "帳務" },
+  { href: "/transactions", icon: CalendarDays, label: "活動" },
+  { href: "/settings", icon: Settings, label: "設定" },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -27,15 +27,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       "--theme-primary": themeColor,
       "--theme-primary-rgb": themeColorRgb 
     } as React.CSSProperties}>
-      {/* 主內容�?（�??��???Nav 空�?�?*/}
+      {/* 主內容區（預留底部 Nav 空間） */}
       <main className="flex-1 pb-24 overflow-y-auto">
         {children}
       </main>
 
-      {/* 極速�?�?Drawer */}
+      {/* 極速記帳 Drawer */}
       <QuickAddDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
 
-      {/* 底部導覽??*/}
+      {/* 底部導覽列 */}
       <nav
         className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around px-4 pt-3 pb-6"
         style={{
@@ -45,9 +45,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           borderTop: "1px solid var(--border)",
         }}
       >
-        {/* 左側?��?Tab */}
+        {/* 左側兩個 Tab */}
         {navItems.slice(0, 2).map(({ href, icon: Icon, label }) => {
-          const isActive = pathname.includes(href);
+          const isActive = pathname?.includes(href);
           return (
             <Link key={href} href={href} className="flex flex-col items-center gap-1 flex-1 py-1">
               <motion.div whileTap={{ scale: 0.85 }}>
@@ -64,7 +64,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           );
         })}
 
-        {/* 中�? FAB???��? */}
+        {/* 中間 FAB「+」號 */}
         <div className="flex flex-col items-center -mt-8 flex-1">
           <motion.button
             whileTap={{ scale: 0.92 }}
@@ -79,9 +79,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </motion.button>
         </div>
 
-        {/* ?�側一??Tab */}
+        {/* 右側一個 Tab */}
         {navItems.slice(2).map(({ href, icon: Icon, label }) => {
-          const isActive = pathname.includes(href);
+          const isActive = pathname?.includes(href);
           return (
             <Link key={href} href={href} className="flex flex-col items-center gap-1 flex-1 py-1">
               <motion.div whileTap={{ scale: 0.85 }}>
