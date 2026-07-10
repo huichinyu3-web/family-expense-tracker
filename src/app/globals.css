@@ -97,15 +97,15 @@ body {
 .theme-activity .shadow-indigo-500\/30 { --tw-shadow-color: rgba(20, 184, 166, 0.3) !important; }
 .theme-activity .bg-indigo-500\/20 { background-color: rgba(20, 184, 166, 0.2) !important; }
 
-/* 活動模式專屬：深色背景隔離 (Activity Mode) - 深青色調 */
+/* 活動模式專屬：深色背景隔離 (Activity Mode) - 鐵灰色調 */
 .theme-activity {
-  --bg-base: #042f2e; /* Teal 950 */
-  --bg-surface: #134e4a; /* Teal 900 */
-  --bg-card: #134e4a;
-  --bg-overlay: rgba(4, 47, 46, 0.85);
-  --text-primary: #f0fdfa; /* Teal 50 */
-  --text-secondary: #ccfbf1; /* Teal 100 */
-  --text-muted: #5eead4; /* Teal 300 */
-  --border: rgba(20, 184, 166, 0.15);
-  --border-hover: rgba(20, 184, 166, 0.25);
+  --bg-base: #18181b; /* Zinc 900 */
+  --bg-surface: #27272a; /* Zinc 800 */
+  --bg-card: #27272a;
+  --bg-overlay: rgba(24, 24, 27, 0.85);
+  --text-primary: #fafafa;
+  --text-secondary: #e4e4e7;
+  --text-muted: #a1a1aa;
+  --border: rgba(255, 255, 255, 0.15);
+  --border-hover: rgba(255, 255, 255, 0.25);
 }
