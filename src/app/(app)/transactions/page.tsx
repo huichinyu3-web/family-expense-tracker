@@ -1,28 +1,40 @@
-import { getTransactions } from "@/app/actions/transaction";
-import TransactionsClient from "./TransactionsClient";
-import { getAccessibleWallets } from "@/app/actions/wallet";
 import { auth } from "@/lib/auth";
+import { getTransactions } from "@/app/actions/transaction";
+import { getAccessibleWallets } from "@/app/actions/wallet";
 import { db } from "@/lib/db";
 import { familyMembers } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import DashboardClient from "@/app/(app)/dashboard/DashboardClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function TransactionsPage() {
   const session = await auth();
   const userId = session?.user?.id;
-  
-  const membership = userId ? await db.query.familyMembers.findFirst({
+
+  if (!userId) {
+    return <div>請先登入</div>;
+  }
+
+  const membership = await db.query.familyMembers.findFirst({
     where: eq(familyMembers.userId, userId),
-  }) : null;
+    with: { family: { with: { members: true } } },
+  });
 
   const transactions = await getTransactions();
   const wallets = await getAccessibleWallets();
+  const familyMembersCount = membership?.family?.members?.length || 1;
 
-  return <TransactionsClient 
-    initialData={transactions} 
-    wallets={wallets} 
-    currentUserId={userId} 
-    currentUserRole={membership?.role || "MEMBER"} 
-  />;
+  return (
+    <DashboardClient
+      transactions={transactions}
+      wallets={wallets}
+      currentUserId={userId}
+      userName={session?.user?.name || "使用者"}
+      familyName={membership?.family?.name || "我的共享帳簿"}
+      familyMembersCount={familyMembersCount}
+      currentUserRole={membership?.role || "MEMBER"}
+      mode="activity"
+    />
+  );
 }

@@ -37,7 +37,8 @@ function Avatar({ initial, colorId }: { initial: string; colorId: string }) {
 }
 
 // @ts-ignore
-export default function DashboardClient({ transactions, wallets, currentUserId, userName, familyName, familyMembersCount, currentUserRole }) {
+export default function DashboardClient({ transactions, wallets, currentUserId, userName, familyName, familyMembersCount, currentUserRole, mode = "regular" }) {
+  const isActivity = mode === "activity";
   const now = new Date();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -168,19 +169,23 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
     });
   };
 
-  // 期間帳簿 ID 集合（帳務頁預設排除期間帳簿的交易）
+  // 期間帳簿 ID 集合
   const periodWalletIds = useMemo(() => new Set(wallets.filter((w: any) => w.startDate).map((w: any) => w.id)), [wallets]);
 
   // 過濾資料 (依據月份、視角、帳簿、進階過濾器)
   const filteredTx = useMemo(() => {
     return transactions.filter((tx: any) => {
       const txDateObj = new Date(tx.date);
-      // 月份過濾 (如果沒有設定特定日期區間，才套用月份過濾)
+      // 月份過濾
       const isSameMonth = (startDate || endDate) ? true : (txDateObj.getMonth() === monthIdx && txDateObj.getFullYear() === year);
       
       const matchWallet = selectedWallets.length === 0 || selectedWallets.includes(tx.walletId);
-      // 帳務頁預設排除期間帳簿的交易（除非明確選中該期間帳簿）
-      const isExcludedPeriod = selectedWallets.length === 0 && periodWalletIds.has(tx.walletId);
+      // 按模式排除：帳務模式排除期間帳簿，活動模式排除一般帳簿
+      const isExcludedPeriod = selectedWallets.length === 0 && (
+        isActivity
+          ? !periodWalletIds.has(tx.walletId)   // 活動：只要期間帳簿
+          : periodWalletIds.has(tx.walletId)     // 帳務：排除期間帳簿
+      );
       
       const matchMember = selectedMembers.length === 0 || selectedMembers.includes(tx.user?.name);
       const matchType   = typeFilter === "全部"
@@ -207,7 +212,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
 
       return isSameMonth && matchWallet && !isExcludedPeriod && matchMember && matchType && matchCat && matchMerch && matchMin && matchMax && matchStart && matchEnd && matchSearch;
     });
-  }, [transactions, monthIdx, year, selectedWallets, selectedMembers, typeFilter, categoryFilter, merchantFilter, minAmount, maxAmount, startDate, endDate, search, periodWalletIds]);
+  }, [transactions, monthIdx, year, selectedWallets, selectedMembers, typeFilter, categoryFilter, merchantFilter, minAmount, maxAmount, startDate, endDate, search, periodWalletIds, isActivity]);
 
   // 若只選了一個帳簿，才顯示拆帳/詳細餘額等資訊（須先定義，後面統計用到）
   const selectedWallet = selectedWallets.length === 1 ? wallets.find((w: any) => w.id === selectedWallets[0]) : null;
@@ -296,6 +301,24 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
 
   // ── 2. 智能洞察小語 (Smart Insights) ──
   const smartInsight = useMemo(() => {
+    if (isActivity) {
+      if (totalExpense === 0 && totalIncome === 0) {
+        return { text: "🗓️ 此活動尚無記帳紀錄，開始記錄活動花費吧！", type: "success" };
+      }
+      if (selectedWallet?.startDate) {
+        const s = new Date(selectedWallet.startDate);
+        const e = selectedWallet.endDate ? new Date(selectedWallet.endDate) : null;
+        const totalDays = e ? Math.max(Math.round((e.getTime() - s.getTime()) / 86400000) + 1, 1) : null;
+        const elapsedDays = Math.min(Math.max(Math.round((now.getTime() - s.getTime()) / 86400000) + 1, 1), totalDays ?? 999);
+        const avgPerDay = elapsedDays > 0 && totalExpense > 0 ? Math.round(totalExpense / elapsedDays) : 0;
+        const isEnded = e && now > e;
+        const isPending = now < s;
+        if (isPending) return { text: `📅 「${selectedWallet.name}」即將開始，將在 ${s.toLocaleDateString("zh-TW")} 啟動記帳。`, type: "success" };
+        if (isEnded)  return { text: `🏁 「${selectedWallet.name}」已結束，共消費 NT$${Math.round(totalExpense).toLocaleString()}，平均每天 NT$${avgPerDay.toLocaleString()}。`, type: "success" };
+        if (totalDays) return { text: `✈️ 第 ${elapsedDays} 天，共消費 NT$${Math.round(totalExpense).toLocaleString()}  ·  日均 NT$${avgPerDay.toLocaleString()}，共 ${totalDays} 天。`, type: totalExpense > 0 ? "warning" : "success" };
+      }
+      return { text: "🔥 繼續記錄您的活動花費！", type: "success" };
+    }
     if (selectedWallet && (selectedWallet.balance || 0) < 0) {
       return { text: `⚠️ 注意！【${selectedWallet.name}】餘額已呈現負數 ($ ${(selectedWallet.balance || 0).toLocaleString()})，請留意資金狀況。`, type: "danger" };
     }
@@ -372,7 +395,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
         
         {/* 中間：置中標題 */}
         <div className="absolute left-1/2 -translate-x-1/2 text-base font-bold" style={{ color: "var(--text-primary)" }}>
-          帳簿總覽
+          {isActivity ? "活動" : "帳簿總覽"}
         </div>
         
         {/* 右側：過濾按鈕 */}
@@ -575,11 +598,11 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
       <div className="mb-5 glass-card p-3 rounded-2xl border border-[var(--border)]">
         <div className="flex items-center gap-1.5 mb-2.5 px-1">
           <Wallet size={16} className="text-[#6366f1]" />
-          <span className="text-sm font-bold text-[var(--text-primary)]">帳務帳簿</span>
+          <span className="text-sm font-bold text-[var(--text-primary)]">{isActivity ? "活動帳簿" : "帳務帳簿"}</span>
           <span className="text-xs text-[var(--text-muted)] ml-auto">可多選</span>
         </div>
         <div className="flex flex-wrap gap-2">
-          {wallets.filter((w: any) => !w.startDate).map((w: any) => {
+          {wallets.filter((w: any) => isActivity ? !!w.startDate : !w.startDate).map((w: any) => {
             const isSel = selectedWallets.includes(w.id);
             return (
               <button key={w.id} onClick={() => handleWalletToggle(w.id)}
