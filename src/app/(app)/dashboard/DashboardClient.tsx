@@ -64,12 +64,19 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
   const [fxRates, setFxRates] = useState<Record<string, number>>({});
   const [fxUpdatedAt, setFxUpdatedAt] = useState<string | null>(null);
 
+  const usedForeignKeys = Array.from(
+    new Set([
+      ...transactions.map((t: any) => t.currency),
+      ...wallets.map((w: any) => w.currency)
+    ].filter((c: string) => c && c !== "TWD"))
+  ) as string[];
+  const usedForeignStr = JSON.stringify(usedForeignKeys.sort());
+
   useEffect(() => {
-    // 動態找出所有交易裡出現的非-TWD 幣別
-    const usedForeign = Array.from(
-      new Set(transactions.map((t: any) => t.currency).filter((c: string) => c && c !== "TWD"))
-    ) as string[];
+    const usedForeign = JSON.parse(usedForeignStr) as string[];
     if (usedForeign.length === 0) return;
+    // 若已包含所有需要的匯率，就不重新抓
+    if (usedForeign.every(c => fxRates[c] !== undefined)) return;
 
     // 使用 open.er-api.com（免費、無 Key、支援 TWD）
     // 取得所有幣別相對於 USD 的匯率，再計算 1外幣 = ?TWD
@@ -92,8 +99,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
         setFxUpdatedAt(`${now2.getMonth()+1}/${now2.getDate()} ${now2.getHours()}:${now2.getMinutes().toString().padStart(2,'0')}`);
       })
       .catch(() => {}); // API 失敗靜默處理（純 TWD 帳簿不受影響）
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [usedForeignStr]); // 依賴 usedForeignStr 確保幣別變更時會重抓
 
   // 將任意幣別金額轉換為台幣 (TWD)
   const toTWD = (amount: number, currency?: string) => {
@@ -260,29 +266,32 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
     splitState = { myPaid, myShare, myNetBalance, membersCount };
   }
 
-  // 計算預算：單選帳簿用該帳簿的預算；多選帳簿則加總所有已選帳簿有設預算者
+  // 計算預算：單選帳簿用該帳簿的預算轉換為 TWD；多選帳簿則加總所有已選帳簿有設預算者(皆轉為 TWD)
   const effectiveBudget = (() => {
     if (selectedWallet) {
-      return selectedWallet.monthlyBudget ?? null;
+      return selectedWallet.monthlyBudget ? toTWD(selectedWallet.monthlyBudget, selectedWallet.currency) : null;
     }
     // 多選或全選時：加總有設定 monthlyBudget 的帳簿
     const targetWallets = selectedWallets.length > 0
       ? wallets.filter((w: any) => selectedWallets.includes(w.id))
       : wallets;
-    const total = targetWallets.reduce((sum: number, w: any) => sum + (w.monthlyBudget || 0), 0);
+    const total = targetWallets.reduce((sum: number, w: any) => sum + (w.monthlyBudget ? toTWD(w.monthlyBudget, w.currency) : 0), 0);
     return total > 0 ? total : null;
   })();
 
   // 1. 區間收支結餘 (取代原本的 allTimeSavings，改用當前過濾後的資料)
-  const periodSavings = totalIncome - totalExpense;
+  // 活動且有設定預算時，結餘顯示為「剩餘預算」，否則為「收入 - 支出」
+  const periodSavings = (isActivity && effectiveBudget != null)
+    ? effectiveBudget - totalExpense
+    : totalIncome - totalExpense;
   const periodSavingsRate = totalIncome > 0 ? (periodSavings / totalIncome) * 100 : 0;
 
   const spentPct = effectiveBudget != null ? Math.min((totalExpense / effectiveBudget) * 100, 100) : 0;
 
-  // 圓餅圖：紅色為期間支出，綠色為期間結餘 (若透支則全紅)
+  // 圓餅圖：紅色為期間支出，綠色為結餘或剩餘預算 (若透支則全紅)
   const CHART_DATA = [
     { name: "期間支出", value: totalExpense },
-    { name: "期間結餘", value: Math.max(periodSavings, 0) || (totalExpense === 0 ? 1 : 0) },
+    { name: (isActivity && effectiveBudget != null) ? "剩餘預算" : "期間結餘", value: Math.max(periodSavings, 0) || (totalExpense === 0 ? 1 : 0) },
   ];
 
   // ── 1. 分類支出排行 (Top Categories Breakdown) ──
@@ -334,10 +343,10 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
 
     // 預算超支提醒（只有設定了預算才顯示）
     if (effectiveBudget != null && spentPct >= 100) {
-      return { text: `🚨 預算超標！本月花費已超過設定的 $${effectiveBudget.toLocaleString()} 預算，請留意控制開銷！`, type: "danger" };
+      return { text: `🚨 預算超標！${isActivity ? "活動" : "本月"}花費已超過設定的 NT$${Math.round(effectiveBudget).toLocaleString()} 預算，請留意控制開銷！`, type: "danger" };
     }
     if (effectiveBudget != null && spentPct > 80) {
-      return { text: `⚠️ 提醒：本月花費已達預算 ${spentPct.toFixed(0)}%，距離上限僅剩 $${(effectiveBudget - totalExpense).toLocaleString()}！`, type: "warning" };
+      return { text: `⚠️ 提醒：${isActivity ? "活動" : "本月"}花費已達預算 ${spentPct.toFixed(0)}%，距離上限僅剩 NT$${Math.max(0, Math.round(effectiveBudget - totalExpense)).toLocaleString()}！`, type: "warning" };
     }
 
     // 尚未設定預算提示
@@ -810,7 +819,7 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
           <div className="flex items-start justify-between mb-3 relative z-10">
             <div>
               <p className="text-xs font-bold px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-500 inline-block mb-1">
-                📐 拆帳模式 (本月狀態)
+                📐 拆帳模式 {isActivity ? "(目前狀態)" : "(本月狀態)"}
               </p>
               <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
                 {splitState.myNetBalance >= 0 ? "目前您淨賺/應收回" : "目前您需補付"}
@@ -923,10 +932,10 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
         );
       })()}
 
-      {/* ── 本月交易明細 ── */}
+      {/* ── 交易明細 ── */}
       <div className="mb-4">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>本月明細 ({filteredTx.length})</h2>
+          <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{isActivity ? "活動明細" : "本月明細"} ({filteredTx.length})</h2>
           {filteredTx.length > 5 && (
             <button 
               onClick={() => setShowAllTx(!showAllTx)} 
