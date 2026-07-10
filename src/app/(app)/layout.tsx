@@ -17,6 +17,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  const isActivity = pathname === "/transactions";
+  const themeColor = isActivity ? "#14b8a6" : "#6366f1";
+  const themeColorRgb = isActivity ? "20, 184, 166" : "99, 102, 241";
+
   return (
     <div className="flex flex-col min-h-screen" style={{ background: "var(--bg-base)" }}>
       {/* 主內容區（預留底部 Nav 空間） */}
@@ -45,11 +49,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <motion.div whileTap={{ scale: 0.85 }}>
                 <Icon
                   size={22}
-                  style={{ color: isActive ? "#6366f1" : "var(--text-muted)" }}
+                  style={{ color: isActive ? themeColor : "var(--text-muted)" }}
                 />
               </motion.div>
               <span className="text-[10px] font-medium"
-                style={{ color: isActive ? "#6366f1" : "var(--text-muted)" }}>
+                style={{ color: isActive ? themeColor : "var(--text-muted)" }}>
                 {label}
               </span>
             </Link>
@@ -63,8 +67,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             onClick={() => setDrawerOpen(true)}
             className="w-14 h-14 rounded-full flex items-center justify-center shadow-lg"
             style={{
-              background: "var(--gradient-primary)",
-              boxShadow: "var(--shadow-glow), 0 4px 20px rgba(0,0,0,0.4)",
+              background: isActivity ? "linear-gradient(135deg, #14b8a6, #34d399)" : "var(--gradient-primary)",
+              boxShadow: `0 10px 40px rgba(${themeColorRgb}, 0.3), 0 4px 20px rgba(0,0,0,0.4)`,
             }}
           >
             <Plus size={26} color="white" />
@@ -79,11 +83,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <motion.div whileTap={{ scale: 0.85 }}>
                 <Icon
                   size={22}
-                  style={{ color: isActive ? "#6366f1" : "var(--text-muted)" }}
+                  style={{ color: isActive ? themeColor : "var(--text-muted)" }}
                 />
               </motion.div>
               <span className="text-[10px] font-medium"
-                style={{ color: isActive ? "#6366f1" : "var(--text-muted)" }}>
+                style={{ color: isActive ? themeColor : "var(--text-muted)" }}>
                 {label}
               </span>
             </Link>
