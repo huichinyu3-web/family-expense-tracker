@@ -251,34 +251,18 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
         </div>
       )}
 
-      {/* ── 搜尋列 ── */}
-      <div className="relative mb-3">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2"
-          style={{ color: "var(--text-muted)" }} />
-        <input
-          type="text"
-          placeholder="搜尋商家、分類或備註..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none"
-          style={{
-            background: "var(--bg-card)",
-            border: "1px solid var(--border)",
-            color: "var(--text-primary)",
-          }}
-        />
-      </div>
-
-      {/* ── 進階篩選面板 ── */}
+      {/* ── 進階篩選面板（與帳務相同結構） ── */}
+      <AnimatePresence>
       {showFilter && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
           className="glass-card p-4 mb-4 overflow-hidden"
         >
-          {/* 手動日期範圍（覆蓋月份篩選，選填）*/}
+          {/* 日期範圍 */}
           <div className="mb-4">
-            <p className="text-xs font-semibold mb-1" style={{ color: "var(--text-muted)" }}>自訂日期範圍（選填，覆蓋月份篩選）</p>
+            <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>日期範圍</p>
             <div className="flex gap-2 items-center">
               <input type="date" value={manualStart} onChange={e => setManualStart(e.target.value)}
                 className="flex-1 px-3 py-1.5 rounded-lg text-xs outline-none bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)]" />
@@ -287,7 +271,7 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
                 className="flex-1 px-3 py-1.5 rounded-lg text-xs outline-none bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)]" />
             </div>
             {(manualStart || manualEnd) && (
-              <button onClick={() => { setManualStart(""); setManualEnd(""); }} className="text-[10px] text-amber-500 mt-1.5">✕ 清除自訂日期，回到月份篩選</button>
+              <button onClick={() => { setManualStart(""); setManualEnd(""); }} className="text-[10px] text-amber-500 mt-1.5">✕ 清除自訂日期</button>
             )}
           </div>
 
@@ -298,7 +282,7 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
               const isSelected = selectedMembers.includes(m);
               return (
                 <button key={m} onClick={() => {
-                  setSelectedMembers(prev => 
+                  setSelectedMembers(prev =>
                     isSelected ? prev.filter(x => x !== m) : [...prev, m]
                   );
                 }}
@@ -346,7 +330,7 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
             ))}
           </div>
 
-          {/* 收支類型 */}
+          {/* 收支類型與金額 */}
           <div className="flex flex-wrap gap-4 mb-4">
             <div className="flex-1">
               <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>收支類型</p>
@@ -364,8 +348,7 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
                 ))}
               </div>
             </div>
-            
-            {/* 金額範圍 */}
+
             <div className="flex-1">
               <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>金額範圍</p>
               <div className="flex gap-2 items-center">
@@ -378,18 +361,41 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
             </div>
           </div>
 
+          {/* 關鍵字搜尋 */}
+          <div className="mb-4">
+            <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>關鍵字搜尋</p>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="搜尋備註或商家名稱..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl text-xs outline-none bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)]"
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-[var(--bg-card)]"
+                >
+                  <X size={12} style={{ color: "var(--text-muted)" }} />
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* 清除按鈕 */}
           <div className="flex justify-end pt-2 border-t border-[var(--border)] mt-2">
             <button onClick={() => {
               setManualStart(""); setManualEnd(""); setSelectedMembers([]); setCategoryFilter("全部");
               setMerchantFilter("全部"); setTypeFilter("全部"); setMinAmount(""); setMaxAmount("");
-              setSelectedWallets([]);
+              setSearch(""); setSelectedWallets([]);
             }} className="text-xs font-bold text-rose-500 bg-rose-500/10 px-4 py-2 rounded-lg">
               清除所有篩選
             </button>
           </div>
         </motion.div>
       )}
+      </AnimatePresence>
 
       {/* ── 摘要列 ── */}
       <div className="flex gap-3 mb-4">
