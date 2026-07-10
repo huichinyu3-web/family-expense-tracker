@@ -112,7 +112,7 @@ function CustomCalendar({ selectedDate, onSelect }: { selectedDate: string; onSe
 function ListRow({ icon, label, value, onClick, active, valueColor }: any) {
   return (
     <button onClick={onClick} className="w-full flex items-center justify-between py-4 px-5 border-b border-[var(--border)] transition-colors"
-      style={{ background: active ? "rgba(99,102,241,0.05)" : "transparent" }}>
+      style={{ background: active ? "rgba(var(--theme-primary-rgb),0.05)" : "transparent" }}>
       <div className="flex items-center gap-3">
         <span className="text-xl">{icon}</span>
         <span className="text-base font-medium" style={{ color: "var(--text-primary)" }}>{label}</span>
@@ -436,7 +436,7 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
 
             {/* ── 中間：直列欄位清單 (可滑動) ── */}
             <div className="flex-1 overflow-y-auto custom-scrollbar">
-              <ListRow icon="📅" label="日期" value={displayDate} onClick={() => togglePanel("date")} active={activePanel==="date"} valueColor="#6366f1" />
+              <ListRow icon="📅" label="日期" value={displayDate} onClick={() => togglePanel("date")} active={activePanel==="date"} valueColor="var(--theme-primary)" />
               <ListRow icon="🏷️" label="分類" value={categoryName} onClick={() => togglePanel("category")} active={activePanel==="category"} valueColor={isCategoryValid ? accentColor : "var(--text-muted)"} />
               <ListRow icon="💳" label="帳簿" value={selectedWallet ? `${selectedWallet.name}${selectedWallet.visibility === "FAMILY" ? " 👥" : ""}` : "請選擇"} onClick={() => togglePanel("wallet")} active={activePanel==="wallet"} valueColor={selectedWallet ? "var(--text-primary)" : "var(--text-muted)"} />
               {selectedWallet?.isSplitEnabled && (
@@ -477,8 +477,8 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
                             <motion.button key={`${ri}-${ci}`} whileTap={{ scale: 0.85 }} onClick={() => handleKey(key)}
                               className="h-11 rounded-xl flex items-center justify-center text-[1.3rem] font-semibold"
                               style={{
-                                background: isOp ? "rgba(99,102,241,0.15)" : isDel ? "rgba(244,63,94,0.1)" : "var(--bg-surface)",
-                                color: isOp ? "#6366f1" : isDel ? "#f43f5e" : "var(--text-primary)",
+                                background: isOp ? "rgba(var(--theme-primary-rgb),0.15)" : isDel ? "rgba(244,63,94,0.1)" : "var(--bg-surface)",
+                                color: isOp ? "var(--theme-primary)" : isDel ? "#f43f5e" : "var(--text-primary)",
                                 border: "1px solid var(--border)",
                               }}>
                               {key}
@@ -497,8 +497,8 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
                       <motion.button whileTap={(!isPending && !submitted) ? { scale: 0.95 } : undefined} onClick={() => !isPending && !submitted && handleKey("OK")}
                         className="col-span-3 rounded-xl flex items-center justify-center text-lg font-bold transition-colors"
                         style={{ 
-                          background: isPending ? "rgba(255,255,255,0.05)" : (submitted ? "#10b981" : (hasOp ? "rgba(99,102,241,0.2)" : (canSubmit ? accentColor : "var(--bg-surface)"))), 
-                          color: isPending ? "var(--text-muted)" : (submitted ? "#fff" : (hasOp ? "#6366f1" : (canSubmit ? "#fff" : "var(--text-muted)"))), 
+                          background: isPending ? "rgba(255,255,255,0.05)" : (submitted ? "#10b981" : (hasOp ? "rgba(var(--theme-primary-rgb),0.2)" : (canSubmit ? accentColor : "var(--bg-surface)"))), 
+                          color: isPending ? "var(--text-muted)" : (submitted ? "#fff" : (hasOp ? "var(--theme-primary)" : (canSubmit ? "#fff" : "var(--text-muted)"))), 
                           border: "1px solid var(--border)" 
                         }}>
                         {isPending ? (
@@ -579,7 +579,7 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
                     {[...wallets].sort((a, b) => (a.visibility === "FAMILY" ? -1 : 1)).map(w => (
                       <button key={w.id} onClick={() => { setSelectedWalletId(w.id); setActivePanel("numpad"); }}
                         className="flex items-center gap-4 px-5 py-4 border-b border-[var(--border)] text-left"
-                        style={{ background: selectedWalletId === w.id ? "rgba(99,102,241,0.15)" : "transparent", color: "var(--text-primary)" }}>
+                        style={{ background: selectedWalletId === w.id ? "rgba(var(--theme-primary-rgb),0.15)" : "transparent", color: "var(--text-primary)" }}>
                         <span className="text-2xl">{WALLET_ICONS[w.type] ?? "💰"}</span>
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
@@ -601,7 +601,7 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
                     {members.map(m => (
                       <button key={m.userId} onClick={() => { setPaidByUserId(m.userId); setActivePanel("numpad"); }}
                         className="flex items-center gap-4 px-5 py-4 border-b border-[var(--border)] text-left"
-                        style={{ background: paidByUserId === m.userId ? "rgba(99,102,241,0.15)" : "transparent", color: "var(--text-primary)" }}>
+                        style={{ background: paidByUserId === m.userId ? "rgba(var(--theme-primary-rgb),0.15)" : "transparent", color: "var(--text-primary)" }}>
                         <div className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden bg-indigo-500/20 text-xl flex-shrink-0">
                           {m.user?.image ? <img src={m.user.image} alt="avatar" /> : "😊"}
                         </div>
@@ -624,7 +624,7 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
                         return (
                           <button key={label} onClick={() => { setSelectedDate(dStr); setActivePanel("numpad"); }}
                             className="flex-1 py-3 rounded-xl text-base font-bold"
-                            style={{ background: selectedDate === dStr ? "rgba(99,102,241,0.2)" : "var(--bg-surface)", color: selectedDate === dStr ? "#6366f1" : "var(--text-muted)", border: "1px solid var(--border)" }}>
+                            style={{ background: selectedDate === dStr ? "rgba(var(--theme-primary-rgb),0.2)" : "var(--bg-surface)", color: selectedDate === dStr ? "var(--theme-primary)" : "var(--text-muted)", border: "1px solid var(--border)" }}>
                             {label}
                           </button>
                         );
@@ -650,7 +650,7 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
                           {frequentMerchants.map(m => (
                             <button key={m.id} onClick={() => { setMerchantInput(m.name); setActivePanel("numpad"); }}
                               className="px-4 py-2 rounded-xl text-sm font-bold transition-all hover:-translate-y-0.5 hover:shadow-md"
-                              style={{ background: "rgba(99,102,241,0.15)", color: "#6366f1", border: "1px solid rgba(99,102,241,0.3)" }}>
+                              style={{ background: "rgba(var(--theme-primary-rgb),0.15)", color: "var(--theme-primary)", border: "1px solid rgba(var(--theme-primary-rgb),0.3)" }}>
                               {m.name}
                             </button>
                           ))}
@@ -680,7 +680,7 @@ export default function QuickAddDrawer({ open, onClose, editData }: { open: bool
                           if(opt.value === "NONE") setActivePanel("numpad"); 
                         }}
                           className="px-4 py-2.5 rounded-xl text-sm font-bold"
-                          style={{ background: recurringType === opt.value ? "rgba(99,102,241,0.2)" : "var(--bg-surface)", color: recurringType === opt.value ? "#6366f1" : "var(--text-secondary)", border: "1px solid var(--border)" }}>
+                          style={{ background: recurringType === opt.value ? "rgba(var(--theme-primary-rgb),0.2)" : "var(--bg-surface)", color: recurringType === opt.value ? "var(--theme-primary)" : "var(--text-secondary)", border: "1px solid var(--border)" }}>
                           {opt.label}
                         </button>
                       ))}

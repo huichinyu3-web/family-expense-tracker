@@ -89,3 +89,10 @@ body {
 ::-webkit-scrollbar        { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track  { background: transparent; }
 ::-webkit-scrollbar-thumb  { background: var(--text-muted); border-radius: 2px; }
+
+/* 活動模式 (Activity Mode) 專屬 Tailwind 類別覆寫 */
+.theme-activity .bg-indigo-500 { background-color: #14b8a6 !important; }
+.theme-activity .text-indigo-500 { color: #14b8a6 !important; }
+.theme-activity .text-indigo-400 { color: #2dd4bf !important; }
+.theme-activity .shadow-indigo-500\/30 { --tw-shadow-color: rgba(20, 184, 166, 0.3) !important; }
+.theme-activity .bg-indigo-500\/20 { background-color: rgba(20, 184, 166, 0.2) !important; }
