@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useTransition } from "react";
-import { Search, SlidersHorizontal, TrendingDown, TrendingUp, X, Edit2, Trash2, ArrowLeft, ArrowRight, Wallet } from "lucide-react";
+import { Search, SlidersHorizontal, TrendingDown, TrendingUp, X, Edit2, Trash2, CalendarDays } from "lucide-react";
 import { deleteTransaction } from "@/app/actions/transaction";
 import { useRouter } from "next/navigation";
 import QuickAddDrawer from "@/components/features/QuickAddDrawer";
@@ -51,20 +51,12 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
   const [typeFilter, setTypeFilter] = useState("全部");
   const [selectedWallets, setSelectedWallets] = useState<string[]>([]);
   const [showFilter, setShowFilter] = useState(false);
-
-  // 進階篩選狀態
-  const todayStr = new Date().toISOString().split("T")[0];
-  const [startDate, setStartDate] = useState(todayStr);
-  const [endDate, setEndDate] = useState(todayStr);
   const [categoryFilter, setCategoryFilter] = useState("全部");
   const [merchantFilter, setMerchantFilter] = useState("全部");
   const [minAmount, setMinAmount] = useState("");
   const [maxAmount, setMaxAmount] = useState("");
-
-  // 動態提取選項
-  const MEMBERS = Array.from(new Set(initialData.map(t => t.user?.name).filter(Boolean))) as string[];
-  const CATEGORIES = ["全部", ...Array.from(new Set(initialData.map(t => t.category?.name).filter(Boolean)))];
-  const MERCHANTS = ["全部", ...Array.from(new Set(initialData.map(t => t.merchant?.name).filter(Boolean)))];
+  const [manualStart, setManualStart] = useState("");
+  const [manualEnd,   setManualEnd]   = useState("");
 
   // 編輯與刪除狀態
   const [selectedTx, setSelectedTx] = useState<any>(null);
@@ -72,31 +64,46 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  const handlePrevDay = () => {
-    const current = startDate || new Date().toISOString().split("T")[0];
-    const d = new Date(current);
-    d.setDate(d.getDate() - 1);
-    const newDate = d.toISOString().split("T")[0];
-    setStartDate(newDate);
-    setEndDate(newDate);
-  };
+  // ── 期間帳簿計算 ──
+  const periodWallets = wallets.filter((w: any) => !!w.startDate);
+  const periodWalletIds = new Set(periodWallets.map((w: any) => w.id));
 
-  const handleNextDay = () => {
-    const current = endDate || new Date().toISOString().split("T")[0];
-    const d = new Date(current);
-    d.setDate(d.getDate() + 1);
-    const newDate = d.toISOString().split("T")[0];
-    setStartDate(newDate);
-    setEndDate(newDate);
-  };
+  // 当前單選的期間帳簿
+  const selectedSingleWallet = selectedWallets.length === 1
+    ? periodWallets.find((w: any) => w.id === selectedWallets[0]) ?? null
+    : null;
 
-  const handleToday = () => {
-    const today = new Date().toISOString().split("T")[0];
-    setStartDate(today);
-    setEndDate(today);
-  };
+  // 自帳簿的日期範圍
+  const walletStart = selectedSingleWallet?.startDate
+    ? new Date(selectedSingleWallet.startDate).toISOString().split("T")[0] : null;
+  const walletEnd = selectedSingleWallet?.endDate
+    ? new Date(selectedSingleWallet.endDate).toISOString().split("T")[0] : null;
+
+  // 手動日期覆蓋（這裡絔持剛才的 manualStart/manualEnd）
+  const effectiveStart = manualStart || walletStart || null;
+  const effectiveEnd   = manualEnd   || walletEnd   || null;
+
+  // 期間狀態計算（用於 Banner 顯示）
+  const now = new Date();
+  const today = now.toISOString().split("T")[0];
+  const periodStatus = selectedSingleWallet?.startDate ? (() => {
+    const start = new Date(selectedSingleWallet.startDate);
+    const end   = selectedSingleWallet.endDate ? new Date(selectedSingleWallet.endDate) : null;
+    if (now < start) return "pending";
+    if (end && now > end) return "ended";
+    return "active";
+  })() : null;
+
+  // 動態提取選項（只從期間帳簿交易中提取）
+  const periodData = initialData.filter((t: any) => periodWalletIds.has(t.walletId));
+  const MEMBERS    = Array.from(new Set(periodData.map((t: any) => t.user?.name).filter(Boolean))) as string[];
+  const CATEGORIES = ["全部", ...Array.from(new Set(periodData.map((t: any) => t.category?.name).filter(Boolean)))] as string[];
+  const MERCHANTS  = ["全部", ...Array.from(new Set(periodData.map((t: any) => t.merchant?.name).filter(Boolean)))] as string[];
 
   const filtered = initialData.filter(tx => {
+    // 只顯示期間帳簿的交易
+    if (!periodWalletIds.has(tx.walletId)) return false;
+
     const searchTarget = `${tx.category?.name} ${tx.merchant?.name || ""} ${tx.note || ""}`;
     const matchSearch = searchTarget.includes(search);
     const matchMember = selectedMembers.length === 0 || selectedMembers.includes(tx.user?.name);
@@ -112,10 +119,10 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
     const matchMin = minAmount ? amt >= Number(minAmount) : true;
     const matchMax = maxAmount ? amt <= Number(maxAmount) : true;
 
-    // 日期範圍
+    // 日期範圍（期間帳簿自己的日期）
     const txDate = new Date(tx.date).toISOString().split("T")[0];
-    const matchStart = startDate ? txDate >= startDate : true;
-    const matchEnd   = endDate ? txDate <= endDate : true;
+    const matchStart = effectiveStart ? txDate >= effectiveStart : true;
+    const matchEnd   = effectiveEnd   ? txDate <= effectiveEnd   : true;
 
     return matchSearch && matchMember && matchType && matchWallet && matchCat && matchMerch && matchMin && matchMax && matchStart && matchEnd;
   });
@@ -149,7 +156,7 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
         
         {/* 中間：置中標題 */}
         <div className="absolute left-1/2 -translate-x-1/2 text-base font-bold" style={{ color: "var(--text-primary)" }}>
-          交易明細
+          活動
         </div>
         
         {/* 右側：過濾按鈕 */}
@@ -166,48 +173,83 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
         </motion.button>
       </div>
 
-      {/* ── 快速日期切換列 ── */}
-      <div className="flex justify-between items-center bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-1 mb-4 shadow-sm">
-        <button onClick={handlePrevDay} className="p-2 rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-secondary)] transition-colors">
-          <ArrowLeft size={18} />
-        </button>
-        <button onClick={handleToday} className="flex-1 flex flex-col items-center justify-center py-1">
-          <span className="text-xs font-medium text-[var(--text-muted)] mb-0.5">回到今天</span>
-          <span className="text-sm font-bold text-[var(--text-primary)] tracking-wide">
-            {startDate === endDate && startDate ? startDate.replace(/-/g, "/") : "多日區間"}
-          </span>
-        </button>
-        <button onClick={handleNextDay} className="p-2 rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-secondary)] transition-colors">
-          <ArrowRight size={18} />
-        </button>
-      </div>
+      {/* ── 期間帳簿選擇器（只顯示期間帳簿） ── */}
+      {periodWallets.length === 0 ? (
+        <div className="text-center py-10 glass-card rounded-2xl mb-4">
+          <p className="text-2xl mb-2">🗓️</p>
+          <p className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>還沒有活動帳簿</p>
+          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>建立帳簿時勾選「期間帳簿」，並設定開始日即可</p>
+        </div>
+      ) : (
+        <div className="mb-4 glass-card p-3 rounded-2xl border border-[var(--border)]">
+          <div className="flex items-center gap-1.5 mb-2.5 px-1">
+            <CalendarDays size={16} className="text-[#6366f1]" />
+            <span className="text-sm font-bold text-[var(--text-primary)]">活動帳簿</span>
+            <span className="text-xs text-[var(--text-muted)] ml-auto">可多選</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {periodWallets.map((w: any) => {
+              const isSel = selectedWallets.includes(w.id);
+              const wStart = w.startDate ? new Date(w.startDate) : null;
+              const wEnd   = w.endDate   ? new Date(w.endDate)   : null;
+              const status = wStart && now < wStart ? "pending" : wEnd && now > wEnd ? "ended" : "active";
+              const statusColor = status === "active" ? "#10b981" : status === "pending" ? "#6366f1" : "var(--text-muted)";
+              const statusLabel = status === "active" ? "進行中" : status === "pending" ? "即將開始" : "已結束";
+              return (
+                <button key={w.id} onClick={() => setSelectedWallets(prev =>
+                  isSel ? prev.filter(x => x !== w.id) : [...prev, w.id]
+                )}
+                  className="px-3 py-2 rounded-xl text-xs font-bold transition-all flex flex-col items-start gap-0.5 text-left"
+                  style={{
+                    background: isSel ? "rgba(99,102,241,0.15)" : "var(--bg-card)",
+                    color: isSel ? "#6366f1" : "var(--text-secondary)",
+                    border: isSel ? "1px solid rgba(99,102,241,0.4)" : "1px solid var(--border)",
+                    minWidth: "80px",
+                  }}>
+                  <span>{w.name}</span>
+                  <span className="text-[9px] font-medium" style={{ color: isSel ? statusColor : "var(--text-muted)" }}>
+                    {statusLabel}
+                    {w.startDate && ` · ${new Date(w.startDate).toLocaleDateString("zh-TW", { month:"short", day:"numeric" })}`}
+                    {w.endDate && `–${new Date(w.endDate).toLocaleDateString("zh-TW", { month:"short", day:"numeric" })}`}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
-      {/* ── 帳簿過濾選擇器（多選） ── */}
-      <div className="mb-5 glass-card p-3 rounded-2xl border border-[var(--border)]">
-        <div className="flex items-center gap-1.5 mb-2.5 px-1">
-          <Wallet size={16} className="text-[#6366f1]" />
-          <span className="text-sm font-bold text-[var(--text-primary)]">當前顯示帳簿</span>
-          <span className="text-xs text-[var(--text-muted)] ml-auto">可多選</span>
+      {/* ── 當前帳簿期間 Banner ── */}
+      {selectedSingleWallet && (
+        <div className="mb-4 rounded-2xl px-4 py-3 flex items-center gap-3"
+          style={{
+            background: periodStatus === "active"
+              ? "linear-gradient(135deg, rgba(16,185,129,0.12), rgba(16,185,129,0.05))"
+              : periodStatus === "ended"
+              ? "rgba(255,255,255,0.04)"
+              : "linear-gradient(135deg, rgba(99,102,241,0.12), rgba(99,102,241,0.05))",
+            border: `1px solid ${periodStatus === "active" ? "rgba(16,185,129,0.3)" : periodStatus === "ended" ? "var(--border)" : "rgba(99,102,241,0.3)"}`,
+          }}>
+          <span className="text-2xl">
+            {periodStatus === "active" ? "🟢" : periodStatus === "ended" ? "⏹️" : "🟣"}
+          </span>
+          <div className="flex-1">
+            <p className="text-xs font-bold" style={{ color: "var(--text-primary)" }}>
+              {selectedSingleWallet.name}
+            </p>
+            <p className="text-[10px] mt-0.5" style={{ color: "var(--text-muted)" }}>
+              {walletStart} – {walletEnd || "未設定結束日"}
+              {periodStatus === "active" && ` · 進行中`}
+              {periodStatus === "ended" && ` · 已結束`}
+              {periodStatus === "pending" && ` · 即將開始`}
+            </p>
+          </div>
+          {manualStart && (
+            <button onClick={() => { setManualStart(""); setManualEnd(""); }}
+              className="text-[9px] text-amber-400">✕ 清除自訂</button>
+          )}
         </div>
-        <div className="flex flex-wrap gap-2">
-        {wallets.map((w: any) => {
-          const isSel = selectedWallets.includes(w.id);
-          return (
-            <button key={w.id} onClick={() => setSelectedWallets(prev =>
-              isSel ? prev.filter(x => x !== w.id) : [...prev, w.id]
-            )}
-              className="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
-              style={{
-                background: isSel ? "rgba(16,185,129,0.15)" : "var(--bg-card)",
-                color: isSel ? "#10b981" : "var(--text-secondary)",
-                border: isSel ? "1px solid rgba(16,185,129,0.4)" : "1px solid var(--border)",
-              }}>
-              <span>{w.name}</span>
-            </button>
-          );
-        })}
-        </div>
-      </div>
+      )}
 
       {/* ── 搜尋列 ── */}
       <div className="relative mb-3">
@@ -234,16 +276,19 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
           animate={{ opacity: 1, height: "auto" }}
           className="glass-card p-4 mb-4 overflow-hidden"
         >
-          {/* 日期範圍 */}
+          {/* 手動日期範圍（覆蓋月份篩選，選填）*/}
           <div className="mb-4">
-            <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>日期範圍</p>
+            <p className="text-xs font-semibold mb-1" style={{ color: "var(--text-muted)" }}>自訂日期範圍（選填，覆蓋月份篩選）</p>
             <div className="flex gap-2 items-center">
-              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+              <input type="date" value={manualStart} onChange={e => setManualStart(e.target.value)}
                 className="flex-1 px-3 py-1.5 rounded-lg text-xs outline-none bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)]" />
               <span className="text-[var(--text-muted)]">-</span>
-              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+              <input type="date" value={manualEnd} onChange={e => setManualEnd(e.target.value)}
                 className="flex-1 px-3 py-1.5 rounded-lg text-xs outline-none bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)]" />
             </div>
+            {(manualStart || manualEnd) && (
+              <button onClick={() => { setManualStart(""); setManualEnd(""); }} className="text-[10px] text-amber-500 mt-1.5">✕ 清除自訂日期，回到月份篩選</button>
+            )}
           </div>
 
           {/* 成員 (多選) */}
@@ -336,8 +381,9 @@ export default function TransactionsClient({ initialData, wallets, currentUserId
           {/* 清除按鈕 */}
           <div className="flex justify-end pt-2 border-t border-[var(--border)] mt-2">
             <button onClick={() => {
-              setStartDate(""); setEndDate(""); setSelectedMembers([]); setCategoryFilter("全部"); 
+              setManualStart(""); setManualEnd(""); setSelectedMembers([]); setCategoryFilter("全部");
               setMerchantFilter("全部"); setTypeFilter("全部"); setMinAmount(""); setMaxAmount("");
+              setSelectedWallets([]);
             }} className="text-xs font-bold text-rose-500 bg-rose-500/10 px-4 py-2 rounded-lg">
               清除所有篩選
             </button>

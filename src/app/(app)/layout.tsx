@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, List, Settings, Plus } from "lucide-react";
+import { Wallet, CalendarDays, Settings, Plus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import QuickAddDrawer from "@/components/features/QuickAddDrawer";
 
 const navItems = [
-  { href: "/dashboard", icon: LayoutDashboard, label: "總覽" },
-  { href: "/transactions", icon: List, label: "明細" },
+  { href: "/dashboard", icon: Wallet, label: "帳務" },
+  { href: "/transactions", icon: CalendarDays, label: "活動" },
   { href: "/settings", icon: Settings, label: "設定" },
 ];
 

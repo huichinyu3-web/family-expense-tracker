@@ -168,6 +168,9 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
     });
   };
 
+  // 期間帳簿 ID 集合（帳務頁預設排除期間帳簿的交易）
+  const periodWalletIds = useMemo(() => new Set(wallets.filter((w: any) => w.startDate).map((w: any) => w.id)), [wallets]);
+
   // 過濾資料 (依據月份、視角、帳簿、進階過濾器)
   const filteredTx = useMemo(() => {
     return transactions.filter((tx: any) => {
@@ -176,6 +179,8 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
       const isSameMonth = (startDate || endDate) ? true : (txDateObj.getMonth() === monthIdx && txDateObj.getFullYear() === year);
       
       const matchWallet = selectedWallets.length === 0 || selectedWallets.includes(tx.walletId);
+      // 帳務頁預設排除期間帳簿的交易（除非明確選中該期間帳簿）
+      const isExcludedPeriod = selectedWallets.length === 0 && periodWalletIds.has(tx.walletId);
       
       const matchMember = selectedMembers.length === 0 || selectedMembers.includes(tx.user?.name);
       const matchType   = typeFilter === "全部"
@@ -200,9 +205,9 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
         (tx.merchant?.name?.toLowerCase() || "").includes(search.toLowerCase())
       );
 
-      return isSameMonth && matchWallet && matchMember && matchType && matchCat && matchMerch && matchMin && matchMax && matchStart && matchEnd && matchSearch;
+      return isSameMonth && matchWallet && !isExcludedPeriod && matchMember && matchType && matchCat && matchMerch && matchMin && matchMax && matchStart && matchEnd && matchSearch;
     });
-  }, [transactions, monthIdx, year, selectedWallets, selectedMembers, typeFilter, categoryFilter, merchantFilter, minAmount, maxAmount, startDate, endDate, search]);
+  }, [transactions, monthIdx, year, selectedWallets, selectedMembers, typeFilter, categoryFilter, merchantFilter, minAmount, maxAmount, startDate, endDate, search, periodWalletIds]);
 
   // 若只選了一個帳簿，才顯示拆帳/詳細餘額等資訊（須先定義，後面統計用到）
   const selectedWallet = selectedWallets.length === 1 ? wallets.find((w: any) => w.id === selectedWallets[0]) : null;
@@ -570,11 +575,11 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
       <div className="mb-5 glass-card p-3 rounded-2xl border border-[var(--border)]">
         <div className="flex items-center gap-1.5 mb-2.5 px-1">
           <Wallet size={16} className="text-[#6366f1]" />
-          <span className="text-sm font-bold text-[var(--text-primary)]">當前顯示帳簿</span>
+          <span className="text-sm font-bold text-[var(--text-primary)]">帳務帳簿</span>
           <span className="text-xs text-[var(--text-muted)] ml-auto">可多選</span>
         </div>
         <div className="flex flex-wrap gap-2">
-          {wallets.map((w: any) => {
+          {wallets.filter((w: any) => !w.startDate).map((w: any) => {
             const isSel = selectedWallets.includes(w.id);
             return (
               <button key={w.id} onClick={() => handleWalletToggle(w.id)}
