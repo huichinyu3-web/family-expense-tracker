@@ -36,8 +36,14 @@ function Avatar({ initial, colorId }: { initial: string; colorId: string }) {
 }
 
 // @ts-ignore
-export default function DashboardClient({ transactions, wallets, currentUserId, userName, familyName, familyMembersCount, currentUserRole, mode = "regular" }) {
+export default function DashboardClient({ transactions: allTransactions, wallets: allWallets, currentUserId, userName, familyName, familyMembersCount, currentUserRole, mode = "regular" }) {
   const isActivity = mode === "activity";
+  
+  // 依照模式嚴格分離帳簿與交易 (分開計算統計圖表的支出、結餘與預算)
+  const wallets = useMemo(() => allWallets.filter((w: any) => isActivity ? !!w.startDate : !w.startDate), [allWallets, isActivity]);
+  const walletIds = useMemo(() => new Set(wallets.map((w: any) => w.id)), [wallets]);
+  const transactions = useMemo(() => allTransactions.filter((t: any) => walletIds.has(t.walletId)), [allTransactions, walletIds]);
+
   const themeColor = isActivity ? "#14b8a6" : "#6366f1";
   const themeColorRgb = isActivity ? "20, 184, 166" : "99, 102, 241";
   const now = new Date();
@@ -189,12 +195,6 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
       const isSameMonth = (showAllPeriod && isActivity) ? true : (startDate || endDate) ? true : (txDateObj.getMonth() === monthIdx && txDateObj.getFullYear() === year);
       
       const matchWallet = selectedWallets.length === 0 || selectedWallets.includes(tx.walletId);
-      // 按模式排除：帳務模式排除期間帳簿，活動模式排除一般帳簿
-      const isExcludedPeriod = selectedWallets.length === 0 && (
-        isActivity
-          ? !periodWalletIds.has(tx.walletId)   // 活動：只要期間帳簿
-          : periodWalletIds.has(tx.walletId)     // 帳務：排除期間帳簿
-      );
       
       const matchMember = selectedMembers.length === 0 || selectedMembers.includes(tx.user?.name);
       const matchType   = typeFilter === "全部"
@@ -219,9 +219,9 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
         (tx.merchant?.name?.toLowerCase() || "").includes(search.toLowerCase())
       );
 
-      return isSameMonth && matchWallet && !isExcludedPeriod && matchMember && matchType && matchCat && matchMerch && matchMin && matchMax && matchStart && matchEnd && matchSearch;
+      return isSameMonth && matchWallet && matchMember && matchType && matchCat && matchMerch && matchMin && matchMax && matchStart && matchEnd && matchSearch;
     });
-  }, [transactions, monthIdx, year, selectedWallets, selectedMembers, typeFilter, categoryFilter, merchantFilter, minAmount, maxAmount, startDate, endDate, search, periodWalletIds, isActivity, showAllPeriod]);
+  }, [transactions, monthIdx, year, selectedWallets, selectedMembers, typeFilter, categoryFilter, merchantFilter, minAmount, maxAmount, startDate, endDate, search, isActivity, showAllPeriod]);
 
   // 若只選了一個帳簿，才顯示拆帳/詳細餘額等資訊（須先定義，後面統計用到）
   const selectedWallet = selectedWallets.length === 1 ? wallets.find((w: any) => w.id === selectedWallets[0]) : null;
@@ -281,18 +281,16 @@ export default function DashboardClient({ transactions, wallets, currentUserId, 
   })();
 
   // 1. 區間收支結餘 (取代原本的 allTimeSavings，改用當前過濾後的資料)
-  // 活動且有設定預算時，結餘顯示為「剩餘預算」，否則為「收入 - 支出」
-  const periodSavings = (isActivity && effectiveBudget != null)
-    ? effectiveBudget - totalExpense
-    : totalIncome - totalExpense;
+  // 區間結餘一律顯示為收入扣除支出
+  const periodSavings = totalIncome - totalExpense;
   const periodSavingsRate = totalIncome > 0 ? (periodSavings / totalIncome) * 100 : 0;
 
   const spentPct = effectiveBudget != null ? Math.min((totalExpense / effectiveBudget) * 100, 100) : 0;
 
-  // 圓餅圖：紅色為期間支出，綠色為結餘或剩餘預算 (若透支則全紅)
+  // 圓餅圖：紅色為期間支出，綠色為區間結餘 (若透支則全紅)
   const CHART_DATA = [
     { name: "期間支出", value: totalExpense },
-    { name: (isActivity && effectiveBudget != null) ? "剩餘預算" : "期間結餘", value: Math.max(periodSavings, 0) || (totalExpense === 0 ? 1 : 0) },
+    { name: "區間結餘", value: Math.max(periodSavings, 0) || (totalExpense === 0 ? 1 : 0) },
   ];
 
   // ── 1. 分類支出排行 (Top Categories Breakdown) ──
