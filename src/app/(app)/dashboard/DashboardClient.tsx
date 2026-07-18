@@ -39,10 +39,9 @@ function Avatar({ initial, colorId }: { initial: string; colorId: string }) {
 export default function DashboardClient({ transactions: allTransactions, wallets: allWallets, currentUserId, userName, familyName, familyMembersCount, currentUserRole, mode = "regular" }) {
   const isActivity = mode === "activity";
   
-  // 依照模式嚴格分離帳簿與交易 (分開計算統計圖表的支出、結餘與預算)
-  const wallets = useMemo(() => allWallets.filter((w: any) => isActivity ? !!w.startDate : !w.startDate), [allWallets, isActivity]);
-  const walletIds = useMemo(() => new Set(wallets.map((w: any) => w.id)), [wallets]);
-  const transactions = useMemo(() => allTransactions.filter((t: any) => walletIds.has(t.walletId)), [allTransactions, walletIds]);
+  // 顯示所有帳簿；以下用 periodWalletIds 標記「期間帳簿」供 UI 標示用
+  const wallets = allWallets;
+  const transactions = allTransactions;
 
   const themeColor = isActivity ? "#14b8a6" : "#6366f1";
   const themeColorRgb = isActivity ? "20, 184, 166" : "99, 102, 241";
@@ -631,7 +630,7 @@ export default function DashboardClient({ transactions: allTransactions, wallets
           <span className="text-xs text-[var(--text-muted)] ml-auto">可多選</span>
         </div>
         <div className="flex flex-wrap gap-2">
-          {wallets.filter((w: any) => isActivity ? !!w.startDate : !w.startDate).map((w: any) => {
+          {wallets.map((w: any) => {
             const isSel = selectedWallets.includes(w.id);
             return (
               <button key={w.id} onClick={() => handleWalletToggle(w.id)}
