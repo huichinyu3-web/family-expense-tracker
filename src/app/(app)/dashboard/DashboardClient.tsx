@@ -216,15 +216,17 @@ export default function DashboardClient({ transactions: allTransactions, wallets
   // 若只選了一個帳簿，才顯示拆帳/詳細餘額等資訊（須先定義，後面統計用到）
   const selectedWallet = selectedWallets.length === 1 ? wallets.find((w: any) => w.id === selectedWallets[0]) : null;
 
-  // 期間帳簿：抓該帳簿所有交易（不受日期篩選器限制）
-  // 讓三月購買的機票也能被納入旅行總費
-  const walletAllTx = selectedWallet?.startDate
+  // 期間帳簿「總計」模式：抓該帳簿所有交易（不受月份限制），供全期統計用
+  // 月份模式：直接用 filteredTx（已依月份過濾）
+  const walletAllTx = (isActivity && showAllPeriod && selectedWallet?.startDate)
     ? transactions.filter((tx: any) => tx.walletId === selectedWallet.id)
     : null;
   const walletAllExpenses = walletAllTx?.filter((tx: any) => tx.type === "EXPENSE") ?? null;
   const walletAllIncomes  = walletAllTx?.filter((tx: any) => tx.type === "INCOME")  ?? null;
 
-  // 統計來源：期間帳簿用 walletAll，普通帳簿用 filteredTx
+  // 統計來源：
+  // - 活動「總計」模式且單選期間帳簿 → walletAllTx（全期間）
+  // - 活動選擇月份 或 日常模式 → filteredTx（已依月份/篩選條件過濾）
   const statExpenses = walletAllExpenses ?? filteredTx.filter((tx: any) => tx.type === "EXPENSE");
   const statIncomes  = walletAllIncomes  ?? filteredTx.filter((tx: any) => tx.type === "INCOME");
 
