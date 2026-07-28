@@ -217,24 +217,17 @@ export default function DashboardClient({ transactions: allTransactions, wallets
   // 若只選了一個帳簿，才顯示拆帳/詳細餘額等資訊（須先定義，後面統計用到）
   const selectedWallet = selectedWallets.length === 1 ? wallets.find((w: any) => w.id === selectedWallets[0]) : null;
 
-  // 期間帳簿「總計」模式：抓該帳簿所有交易（不受月份限制），供全期統計用
-  // 月份模式：直接用 filteredTx（已依月份過濾）
-  const walletAllTx = (isActivity && showAllPeriod && selectedWallet?.startDate)
-    ? transactions.filter((tx: any) => tx.walletId === selectedWallet.id)
-    : null;
-  const walletAllExpenses = walletAllTx?.filter((tx: any) => tx.type === "EXPENSE") ?? null;
-  const walletAllIncomes  = walletAllTx?.filter((tx: any) => tx.type === "INCOME")  ?? null;
+  // 統計來源統一使用 filteredTx：
+  // - 「總計」模式 (showAllPeriod && isActivity) → filteredTx 已不限月份 (isSameMonth = true)
+  // - 月份模式 → filteredTx 已依月份過濾
+  // - 其他篩選（分類、成員、金額...）都已套用在 filteredTx 上
+  const statExpenses = filteredTx.filter((tx: any) => tx.type === "EXPENSE");
+  const statIncomes  = filteredTx.filter((tx: any) => tx.type === "INCOME");
 
-  // 統計來源：
-  // - 活動「總計」模式且單選期間帳簿 → walletAllTx（全期間）
-  // - 活動選擇月份 或 日常模式 → filteredTx（已依月份/篩選條件過濾）
-  const statExpenses = walletAllExpenses ?? filteredTx.filter((tx: any) => tx.type === "EXPENSE");
-  const statIncomes  = walletAllIncomes  ?? filteredTx.filter((tx: any) => tx.type === "INCOME");
-
-  // filteredTx 的 expenses/incomes 僅供明細列表使用
-  const expenses = filteredTx.filter((tx: any) => tx.type === "EXPENSE");
+  // filteredTx 的 expenses/incomes 供明細列表使用（同 statExpenses/statIncomes）
+  const expenses = statExpenses;
   const totalExpense = statExpenses.reduce((sum: number, tx: any) => sum + toTWD(tx.amount, tx.currency), 0);
-  const incomes = filteredTx.filter((tx: any) => tx.type === "INCOME");
+  const incomes = statIncomes;
   const totalIncome = statIncomes.reduce((sum: number, tx: any) => sum + toTWD(tx.amount, tx.currency), 0);
   
   // 計算已付與待付 (以今日為分界)
@@ -288,10 +281,9 @@ export default function DashboardClient({ transactions: allTransactions, wallets
 
   // ── 1. 分類支出排行 (Top Categories Breakdown) ──
   const categoryExpenses = useMemo(() => {
-    // 期間帳簿：用該帳簿全部交易（包含旅行前購買）
-    const src = walletAllExpenses ?? filteredTx.filter((tx: any) => tx.type === "EXPENSE");
+    // 直接用 statExpenses（已套用所有篩選條件）
     const catMap = new Map<string, number>();
-    src.forEach((tx: any) => {
+    statExpenses.forEach((tx: any) => {
       const catName = tx.category?.name || "未分類";
       catMap.set(catName, (catMap.get(catName) || 0) + toTWD(tx.amount, tx.currency));
     });
@@ -300,7 +292,7 @@ export default function DashboardClient({ transactions: allTransactions, wallets
       .map(([name, amount]) => ({ name, amount, percent: totalExpense > 0 ? (amount / totalExpense) * 100 : 0 }))
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 3);
-  }, [filteredTx, walletAllExpenses, totalExpense]);
+  }, [statExpenses, totalExpense]);
 
   // ── 2. 智能洞察小語 (Smart Insights) ──
   const smartInsight = useMemo(() => {
